@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Taskflow — Progress Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/index.css" />
+  
+</head>
+<body>
+<div id="root">
+  <!-- Ambient background -->
+  <div class="ambient">
+    <div class="ambient__orb ambient__orb--1"></div>
+    <div class="ambient__orb ambient__orb--2"></div>
+    <div class="ambient__orb ambient__orb--3"></div>
+  </div>
+
+  <div class="app">
+
+    <!-- ── HEADER ── -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="1" y="1" width="9" height="9" rx="2" fill="var(--accent)"/>
+            <rect x="12" y="1" width="9" height="9" rx="2" fill="var(--accent)" opacity=".4"/>
+            <rect x="1" y="12" width="9" height="9" rx="2" fill="var(--accent)" opacity=".2"/>
+            <rect x="12" y="12" width="9" height="9" rx="2" fill="var(--accent)" opacity=".7"/>
+          </svg>
+        </div>
+        <span class="header__wordmark">Taskflow</span>
+      </div>
+      <nav class="header__nav">
+        <span class="header__nav-item header__nav-item--active">Board</span>
+        <span class="header__nav-item">Timeline</span>
+        <span class="header__nav-item">Reports</span>
+      </nav>
+      <div class="header__actions">
+        <button class="btn-ghost" id="addTaskBtn">+ New Task</button>
+        <div class="avatar">JD</div>
+      </div>
+    </header>
+
+    <!-- ── DASHBOARD ── -->
+    <section class="dashboard">
+
+      <!-- Progress ring card -->
+      <div class="dash-card dash-card--ring">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="50" />
+            <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="50"
+              stroke-dasharray="314"
+              stroke-dashoffset="314"
+              stroke-linecap="round" />
+          </svg>
+          <div class="ring-center">
+            <span class="ring-pct" id="ringPct">0%</span>
+            <span class="ring-label">Done</span>
+          </div>
+        </div>
+        <div class="ring-meta">
+          <p class="ring-meta__title">Overall Progress</p>
+          <p class="ring-meta__sub" id="ringSubtext">0 of 0 tasks complete</p>
+        </div>
+      </div>
+
+      <!-- Stat chips -->
+      <div class="dash-stats">
+        <div class="stat-chip stat-chip--todo">
+          <div class="stat-chip__icon">📝</div>
+          <div>
+            <div class="stat-chip__val" id="countTodo">0</div>
+            <div class="stat-chip__label">To Do</div>
+          </div>
+        </div>
+        <div class="stat-chip stat-chip--working">
+          <div class="stat-chip__icon">⚡</div>
+          <div>
+            <div class="stat-chip__val" id="countWorking">0</div>
+            <div class="stat-chip__label">Working</div>
+          </div>
+        </div>
+        <div class="stat-chip stat-chip--completed">
+          <div class="stat-chip__icon">✓</div>
+          <div>
+            <div class="stat-chip__val" id="countCompleted">0</div>
+            <div class="stat-chip__label">Completed</div>
+          </div>
+        </div>
+        <div class="stat-chip stat-chip--onhold">
+          <div class="stat-chip__icon">⏸</div>
+          <div>
+            <div class="stat-chip__val" id="countOnhold">0</div>
+            <div class="stat-chip__label">On Hold</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Velocity bar -->
+      <div class="dash-card dash-card--velocity">
+        <p class="dash-card__label">Weekly Completion</p>
+        <div class="velocity-bars" id="velocityBars">
+          <!-- JS rendered -->
+        </div>
+        <div class="velocity-days">
+          <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── BOARD ── -->
+    <main class="board" id="board">
+
+      <div class="column" data-status="todo">
+        <div class="column__head">
+          <div class="column__indicator column__indicator--todo"></div>
+          <h2 class="column__title">To Do</h2>
+          <span class="column__count" id="badgeTodo">0</span>
+        </div>
+        <ul class="task-list" id="list-todo" data-status="todo"></ul>
+        <div class="add-row" data-status="todo">
+          <input class="add-input" type="text" placeholder="Add a task…" data-status="todo" />
+          <button class="add-btn" data-status="todo" title="Add task">
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="column" data-status="working">
+        <div class="column__head">
+          <div class="column__indicator column__indicator--working"></div>
+          <h2 class="column__title">Working</h2>
+          <span class="column__count" id="badgeWorking">0</span>
+        </div>
+        <ul class="task-list" id="list-working" data-status="working"></ul>
+        <div class="add-row" data-status="working">
+          <input class="add-input" type="text" placeholder="Add a task…" data-status="working" />
+          <button class="add-btn" data-status="working" title="Add task">
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="column" data-status="completed">
+        <div class="column__head">
+          <div class="column__indicator column__indicator--completed"></div>
+          <h2 class="column__title">Completed</h2>
+          <span class="column__count" id="badgeCompleted">0</span>
+        </div>
+        <ul class="task-list" id="list-completed" data-status="completed"></ul>
+        <div class="add-row" data-status="completed">
+          <input class="add-input" type="text" placeholder="Add a task…" data-status="completed" />
+          <button class="add-btn" data-status="completed" title="Add task">
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="column" data-status="onhold">
+        <div class="column__head">
+          <div class="column__indicator column__indicator--onhold"></div>
+          <h2 class="column__title">On Hold</h2>
+          <span class="column__count" id="badgeOnhold">0</span>
+        </div>
+        <ul class="task-list" id="list-onhold" data-status="onhold"></ul>
+        <div class="add-row" data-status="onhold">
+          <input class="add-input" type="text" placeholder="Add a task…" data-status="onhold" />
+          <button class="add-btn" data-status="onhold" title="Add task">
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── MODAL ── -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modal">
+      <div class="modal__header">
+        <h3 class="modal__title">New Task</h3>
+        <button class="modal__close" id="modalClose">✕</button>
+      </div>
+      <div class="modal__body">
+        <label class="modal__label">Task title</label>
+        <input class="modal__input" id="modalTaskTitle" type="text" placeholder="What needs to be done?" />
+        <div class="modal__row">
+          <div class="modal__field">
+            <label class="modal__label">Column</label>
+            <select class="modal__select" id="modalStatus">
+              <option value="todo">To Do</option>
+              <option value="working">Working</option>
+              <option value="completed">Completed</option>
+              <option value="onhold">On Hold</option>
+            </select>
+          </div>
+          <div class="modal__field">
+            <label class="modal__label">Priority</label>
+            <select class="modal__select" id="modalPriority">
+              <option value="high">🔴 High</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+        </div>
+        <label class="modal__label">Due date (optional)</label>
+        <input class="modal__input" id="modalDue" type="date" />
+      </div>
+      <div class="modal__footer">
+        <button class="btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn-primary" id="modalCreate">Create Task</button>
+      </div>
+    </div>
+  </div>
+</div>
+  <!-- ── CONFETTI CANVAS ── -->
+  <!-- <canvas id="confettiCanvas"></canvas> -->
+ <script type="module" src="/src/main.jsx"></script>
+</body>
+   
+</html>

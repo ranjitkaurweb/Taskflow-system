@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment Variables (KEEP SECRET)
+.env
+
+# Build Files
+dist/
+build/
+
+# Vercel
+.vercel/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# VS Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Coverage
+coverage/
+
+# OS Files
+.DS_Store
+Thumbs.db

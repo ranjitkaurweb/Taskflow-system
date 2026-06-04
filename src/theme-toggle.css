@@ -1,0 +1,224 @@
+/* ═══════════════════════════════════════════════════════════════
+   THEME TOGGLE — theme-toggle.css
+   Uses [data-theme] attribute on <html> set by ThemeContext.jsx
+   Default: dark (black). Toggle: white/light.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── DARK THEME — default ── */
+:root,
+[data-theme="dark"] {
+  --t-bg:       #000000;
+  --t-surface:  #111111;
+  --t-surface2: #1a1a1a;
+  --t-surface3: #222222;
+  --t-text1:    #ffffff;
+  --t-text2:    #a0a0a0;
+  --t-text3:    #555555;
+  --t-border:   rgba(255,255,255,0.08);
+  --t-accent:   #e8a04a;
+
+  --t-thumb-pos:   24px;
+  --t-thumb-color: #ffffff;
+  --t-track-bg:    #333333;
+  --t-track-border:rgba(255,255,255,0.15);
+  --t-sun-opacity: 0;
+  --t-moon-opacity:1;
+  --t-moon-color:  #ffffff;
+}
+
+/* ── LIGHT THEME — white ── */
+[data-theme="light"] {
+  --t-bg:       #ffffff;
+  --t-surface:  #f5f5f5;
+  --t-surface2: #eeeeee;
+  --t-surface3: #e0e0e0;
+  --t-text1:    #000000;
+  --t-text2:    #555555;
+  --t-text3:    #999999;
+  --t-border:   rgba(0,0,0,0.10);
+  --t-accent:   #e8a04a;
+
+  --t-thumb-pos:   0px;
+  --t-thumb-color: #000000;
+  --t-track-bg:    #cccccc;
+  --t-track-border:rgba(0,0,0,0.15);
+  --t-sun-opacity: 1;
+  --t-moon-opacity:0;
+  --t-moon-color:  #333333;
+}
+
+/* ── APPLY THEME COLORS TO BODY ── */
+body {
+  background-color: var(--t-bg) !important;
+  color: var(--t-text1) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── OVERRIDE EVERY SURFACE IN THE APP ── */
+/* These classes are used by your components */
+
+/* Main app wrapper */
+[data-theme="light"] .bg-bg {
+  background-color: var(--t-bg) !important;
+}
+
+/* Columns */
+[data-theme="light"] .bg-surface {
+  background-color: var(--t-surface) !important;
+}
+
+/* Task cards & inputs */
+[data-theme="light"] .bg-surface2 {
+  background-color: var(--t-surface2) !important;
+}
+
+/* Badges, counts */
+[data-theme="light"] .bg-surface3 {
+  background-color: var(--t-surface3) !important;
+}
+
+/* Text colors */
+[data-theme="light"] .text-text1 { color: var(--t-text1) !important; }
+[data-theme="light"] .text-text2 { color: var(--t-text2) !important; }
+[data-theme="light"] .text-text3 { color: var(--t-text3) !important; }
+
+/* Borders — light mode shows dark borders */
+[data-theme="light"] [class*="border-white"] {
+  border-color: rgba(0,0,0,0.10) !important;
+}
+
+/* Header */
+[data-theme="light"] header {
+  background-color: rgba(255,255,255,0.92) !important;
+  border-bottom-color: rgba(0,0,0,0.10) !important;
+}
+
+/* Nav buttons */
+[data-theme="light"] header nav button {
+  color: var(--t-text2) !important;
+}
+[data-theme="light"] header nav button:hover {
+  background-color: var(--t-surface2) !important;
+  color: var(--t-text1) !important;
+}
+
+/* Inputs & selects */
+[data-theme="light"] input:not([type="range"]),
+[data-theme="light"] select {
+  background-color: var(--t-surface2) !important;
+  color: var(--t-text1) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+}
+[data-theme="light"] input::placeholder {
+  color: var(--t-text3) !important;
+}
+
+/* Modal */
+[data-theme="light"] .fixed.inset-0.bg-black\/70 {
+  background-color: rgba(0,0,0,0.4) !important;
+}
+
+/* Scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #cccccc !important; }
+[data-theme="light"] ::-webkit-scrollbar-track { background: #eeeeee !important; }
+
+/* Ambient orbs — hide in light */
+[data-theme="light"] [class*="ambient"] { opacity: 0.04 !important; }
+
+/* Smooth transition for all elements on theme switch */
+*, *::before, *::after {
+  transition:
+    background-color 0.25s ease,
+    border-color     0.25s ease,
+    color            0.2s  ease !important;
+}
+/* Keep interaction transitions fast */
+button, a, .task-card {
+  transition:
+    background-color 0.25s ease,
+    border-color     0.25s ease,
+    color            0.2s  ease,
+    transform        0.15s cubic-bezier(0.34,1.56,0.64,1),
+    box-shadow       0.15s ease,
+    opacity          0.15s ease !important;
+}
+
+/* ═══════════════════════════════════════
+   TOGGLE BUTTON STYLES
+═══════════════════════════════════════ */
+.theme-toggle-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+/* Track — the pill */
+.theme-toggle-track {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  border-radius: 100px;
+  background-color: var(--t-track-bg);
+  border: 1.5px solid var(--t-track-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.2s ease !important;
+  flex-shrink: 0;
+}
+
+.theme-toggle-btn:hover .theme-toggle-track {
+  box-shadow: 0 0 0 3px rgba(232,160,74,0.3);
+}
+
+/* Thumb — the circle that slides */
+.theme-toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--t-thumb-color);
+  transform: translate(var(--t-thumb-pos), -50%);
+  transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), background-color 0.3s ease !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  z-index: 2;
+}
+
+/* Sun icon */
+.theme-icon-sun {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  opacity: var(--t-sun-opacity);
+  transition: opacity 0.25s ease !important;
+  z-index: 1;
+}
+
+/* Moon icon */
+.theme-icon-moon {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--t-moon-color);
+  opacity: var(--t-moon-opacity);
+  transition: opacity 0.25s ease !important;
+  z-index: 1;
+}
