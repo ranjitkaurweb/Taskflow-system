@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { useNotifications } from '../hooks/useNotifications'
 
 const DAY = 86400000
 

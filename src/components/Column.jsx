@@ -49,7 +49,7 @@ export default function Column({
             onTouchMove={onTouchMove}
             onTouchDrop={onTouchDrop}
             onDelete={() => onDelete(task.id)}
-            onEdit={(newTitle) => onEdit(task.id, newTitle)}
+            onEdit={(updates) => onEdit(task.id, updates)}
             onView={onView}
           />
         ))}

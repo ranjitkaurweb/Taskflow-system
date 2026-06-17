@@ -16,6 +16,7 @@ import AdminPage         from './pages/AdminPage'
 import { useTasks }      from './hooks/useTasks'
 import { useTheme }      from './components/ThemeContext'
 import { useAuth }       from './context/AuthContext'
+import NotificationBell  from './components/NotificationBell'
 
 function AppInner() {
   const { tasks, addTask, deleteTask, editTask, moveTask, loading, error } = useTasks()
@@ -148,6 +149,8 @@ function AppInner() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Notification Bell */}
+           <NotificationBell isDark={isDark} />
             {/* DB status dot */}
             {loading && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: isDark ? '#8b8a9b' : '#aaa9a0' }}>

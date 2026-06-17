@@ -128,24 +128,79 @@ export function useTasks() {
     }
   }, [userId])
 
-  // ── DELETE ──
-  const deleteTask = useCallback(async (id) => {
-    setTasks(prev => prev.filter(t => t.id !== id))
-    const { error: err } = await supabase
-      .from('tasks').delete().eq('id', id)
-    if (err) console.error('deleteTask error:', err.message)
-  }, [])
+// ── DELETE ──
+const deleteTask = useCallback(async (id) => {
+  // Get task details before deleting
+  const task = tasks.find(t => t.id === id)
+  
+  // Optimistic update
+  setTasks(prev => prev.filter(t => t.id !== id))
+
+  // Delete from DB
+  const { error: err } = await supabase
+    .from('tasks').delete().eq('id', id)
+  if (err) { console.error('deleteTask error:', err.message); return }
+
+  if (!task) return
+
+  // Fetch all admin user ids
+  const { data: admins } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('role', 'admin')
+
+  // Build notification rows
+  const notifTargets = new Set()
+
+  // Notify task owner (employee) if exists and is not the one deleting
+  if (task.user_id && task.user_id !== userId) {
+    notifTargets.add(task.user_id)
+  }
+
+  // Notify all admins
+  if (admins) {
+    admins.forEach(a => notifTargets.add(a.id))
+  }
+
+  const notifications = Array.from(notifTargets).map(uid => ({
+    user_id:    uid,
+    message:    `Task "${task.title}" was deleted.`,
+    task_title: task.title,
+    read:       false,
+  }))
+
+  if (notifications.length > 0) {
+    const { error: notifErr } = await supabase
+      .from('notifications')
+      .insert(notifications)
+    if (notifErr) console.error('notification insert error:', notifErr.message)
+  }
+}, [tasks, userId])
 
   // ── EDIT ──
-  const editTask = useCallback(async (id, newTitle) => {
-    if (!newTitle?.trim()) return
-    setTasks(prev => prev.map(t =>
-      t.id === id ? { ...t, title: newTitle.trim() } : t
-    ))
-    const { error: err } = await supabase
-      .from('tasks').update({ title: newTitle.trim() }).eq('id', id)
-    if (err) console.error('editTask error:', err.message)
-  }, [])
+// ── EDIT ──
+const editTask = useCallback(async (id, updates) => {
+  // Support both old string call and new object call
+  if (typeof updates === 'string') {
+    updates = { title: updates }
+  }
+  if (!updates?.title?.trim()) return
+
+  const cleaned = {
+    title:    updates.title.trim(),
+    priority: updates.priority || 'medium',
+    status:   updates.status   || 'todo',
+    due:      updates.due      || null,
+  }
+
+  setTasks(prev => prev.map(t =>
+    t.id === id ? { ...t, ...cleaned } : t
+  ))
+
+  const { error: err } = await supabase
+    .from('tasks').update(cleaned).eq('id', id)
+  if (err) console.error('editTask error:', err.message)
+}, [])
 
   // ── MOVE (drag-drop / status change) ──
   const moveTask = useCallback(async (id, newStatus) => {

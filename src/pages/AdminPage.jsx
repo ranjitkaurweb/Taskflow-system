@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 import { useTheme } from '../components/ThemeContext'
 import { useAuth } from '../context/AuthContext'
+import TaskCommentsModal from '../components/TaskCommentsModal'
+import { createPortal } from 'react-dom'
 
 // ── Second Supabase client just for creating employees ──
 // This is a completely separate connection — uses same project
@@ -68,25 +70,80 @@ export default function AdminPage() {
   const [inviteLoading, setInviteLoading] = useState(false)
   const [empSearch,     setEmpSearch]     = useState('')
   const [taskFilter,    setTaskFilter]    = useState('all')
+ const [empFilter,     setEmpFilter]     = useState('all')
+ const [commentTask,   setCommentTask]   = useState(null)
+ const [commentCounts, setCommentCounts] = useState({})
+  const [assignEmp,     setAssignEmp]     = useState('')
+const [assignTitle,   setAssignTitle]   = useState('')
+const [assignPriority,setAssignPriority]= useState('medium')
+const [assignDue,     setAssignDue]     = useState('')
+const [assignStatus,  setAssignStatus]  = useState('todo')
+const [assignMsg,     setAssignMsg]     = useState({ type: '', text: '' })
+const [assignLoading, setAssignLoading] = useState(false)
 
   useEffect(() => {
     async function loadData() {
       setLoading(true)
-      const [empRes, taskRes] = await Promise.all([
+   const [empRes, taskRes] = await Promise.all([
   supabase.from('profiles').select('*').order('joined_at', { ascending: false }),
-  supabase.from('tasks').select('*, profiles!tasks_user_id_fkey(full_name, email)').order('created', { ascending: false }),
-  
-      ])
-      console.log("Employees:", empRes.data)
-console.log("Tasks:", taskRes.data)
-console.log("Employee Error:", empRes.error)
-console.log("Task Error:", taskRes.error)
-      if (empRes.data)  setEmployees(empRes.data)
-      if (taskRes.data) setAllTasks(taskRes.data)
+  supabase.from('tasks').select('*').order('created', { ascending: false }),
+])
+if (empRes.data)  setEmployees(empRes.data)
+if (taskRes.data) setAllTasks(taskRes.data)
+  // Fetch comment counts
+const { data: commentData } = await supabase
+  .from('task_comments')
+  .select('task_id')
+
+if (commentData) {
+  const counts = {}
+  commentData.forEach(c => {
+    counts[c.task_id] = (counts[c.task_id] || 0) + 1
+  })
+  setCommentCounts(counts)
+}
       setLoading(false)
     }
     loadData()
   }, [])
+  // ── ASSIGN TASK ──
+const handleAssignTask = async (e) => {
+  e.preventDefault()
+  if (!assignEmp || !assignTitle.trim()) {
+    setAssignMsg({ type: 'error', text: 'Please select an employee and enter a task title.' })
+    return
+  }
+  setAssignLoading(true)
+  setAssignMsg({ type: '', text: '' })
+  try {
+    const newTask = {
+      id:         Math.random().toString(36).slice(2, 10),
+      title:      assignTitle.trim(),
+      status:     assignStatus,
+      priority:   assignPriority,
+      due:        assignDue || null,
+      created:    Date.now(),
+      user_id:    assignEmp,
+      assigned_to: assignEmp,
+    }
+    const { error } = await supabase.from('tasks').insert(newTask)
+    if (error) throw error
+    const emp = employees.find(e => e.id === assignEmp)
+    setAssignMsg({ type: 'success', text: `✅ Task assigned to ${emp?.full_name || emp?.email}!` })
+    setAssignTitle('')
+    setAssignDue('')
+    setAssignPriority('medium')
+    setAssignStatus('todo')
+    setAssignEmp('')
+    // Refresh tasks list
+    const { data } = await supabase.from('tasks').select('*').order('created', { ascending: false })
+    if (data) setAllTasks(data)
+  } catch (err) {
+    setAssignMsg({ type: 'error', text: `Error: ${err.message}` })
+  } finally {
+    setAssignLoading(false)
+  }
+}
 
   // ── ADD EMPLOYEE ──
   // Uses a separate Supabase client so admin stays logged in
@@ -193,8 +250,10 @@ console.log("SIGNUP ERROR:", error)
     ), [employees, empSearch])
 
   const filteredTasks = useMemo(() =>
-    taskFilter === 'all' ? allTasks : allTasks.filter(t => t.status === taskFilter),
-    [allTasks, taskFilter])
+  allTasks
+    .filter(t => taskFilter === 'all' || t.status === taskFilter)
+    .filter(t => empFilter  === 'all' || t.user_id === empFilter),
+  [allTasks, taskFilter, empFilter])
 
   const v = {
     page: { color: isDark ? '#f0eff5' : '#1a1814', fontFamily: 'DM Sans, sans-serif' },
@@ -254,11 +313,15 @@ console.log("SIGNUP ERROR:", error)
 
       {/* Tab nav */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-        {['overview', 'employees', 'tasks', 'invite'].map(t => (
-          <button key={t} style={v.tabBtn(tab === t)} onClick={() => setTab(t)}>
-            {t === 'overview' ? '📊 Overview' : t === 'employees' ? '👥 Employees' : t === 'tasks' ? '📋 All Tasks' : '➕ Add Employee'}
-          </button>
-        ))}
+      {['overview', 'employees', 'tasks', 'assign', 'invite'].map(t => (
+  <button key={t} style={v.tabBtn(tab === t)} onClick={() => setTab(t)}>
+    {t === 'overview' ? '📊 Overview'
+      : t === 'employees' ? '👥 Employees'
+      : t === 'tasks' ? '📋 All Tasks'
+      : t === 'assign' ? '📌 Assign Task'
+      : '➕ Add Employee'}
+  </button>
+))}
       </div>
 
       {/* OVERVIEW */}
@@ -339,31 +402,179 @@ console.log("SIGNUP ERROR:", error)
       )}
 
       {/* ALL TASKS */}
-      {tab === 'tasks' && (
-        <div style={v.card}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={v.cardTitle}>All tasks ({filteredTasks.length})</div>
-            <select value={taskFilter} onChange={e => setTaskFilter(e.target.value)} style={{ ...v.select, fontSize: '12px', padding: '5px 10px' }}>
-              <option value="all">All status</option>
-              <option value="todo">To Do</option>
-              <option value="working">Working</option>
-              <option value="completed">Completed</option>
-              <option value="onhold">On Hold</option>
-            </select>
+    {/* ALL TASKS */}
+{tab === 'tasks' && (
+  <div style={v.card}>
+    {/* Header row */}
+    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={v.cardTitle}>All tasks ({filteredTasks.length})</div>
+     <select value={taskFilter} onChange={e => setTaskFilter(e.target.value)} style={{ ...v.select, fontSize: '12px', padding: '5px 10px' }}>
+  <option value="all">All status</option>
+  <option value="todo">To Do</option>
+  <option value="working">Working</option>
+  <option value="completed">Completed</option>
+  <option value="onhold">On Hold</option>
+</select>
+
+<select value={empFilter} onChange={e => setEmpFilter(e.target.value)} style={{ ...v.select, fontSize: '12px', padding: '5px 10px' }}>
+  <option value="all">All employees</option>
+  {employees.filter(e => e.role === 'employee').map(e => (
+    <option key={e.id} value={e.id}>{e.full_name || e.email}</option>
+  ))}
+</select>
+    </div>
+
+    {/* Column labels */}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 100px 80px 90px 70px', gap: '8px', padding: '6px 0 10px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`, marginBottom: '4px' }}>
+      {['Task', 'Employee', 'Created', 'Due Date', 'Priority', 'Status', ''].map(col => (
+        <div key={col} style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0' }}>{col}</div>
+      ))}
+    </div>
+
+    {/* Rows */}
+    {filteredTasks.length === 0 && (
+      <div style={{ color: isDark ? '#5a5968' : '#aaa9a0', fontSize: '13px', padding: '20px 0', textAlign: 'center' }}>No tasks found.</div>
+    )}
+    {filteredTasks.map(t => {
+      const emp = employees.find(e => e.id === t.user_id)
+      const empName = emp?.full_name || emp?.email || 'Unknown'
+      const empInitial = empName.charAt(0).toUpperCase()
+      const isOverdue = t.due && new Date(t.due) < new Date() && t.status !== 'completed'
+      return (
+        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 100px 80px 90px 70px', gap: '8px', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}` }}>
+
+          {/* Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: STATUS_COLOR[t.status], flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', fontWeight: 500, color: isDark ? '#f0eff5' : '#1a1814', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
           </div>
-          {filteredTasks.map(t => (
-            <div key={t.id} style={v.row}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: STATUS_COLOR[t.status], flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: '13px', color: isDark ? '#f0eff5' : '#1a1814', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-              <span style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {t.profiles?.full_name || t.profiles?.email || 'Unknown'}
-              </span>
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', flexShrink: 0, background: `${PRIORITY_COLOR[t.priority]}20`, color: PRIORITY_COLOR[t.priority], fontWeight: 600 }}>{t.priority}</span>
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', flexShrink: 0, background: `${STATUS_COLOR[t.status]}20`, color: STATUS_COLOR[t.status] }}>{t.status}</span>
+
+          {/* Employee */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+            <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              {empInitial}
             </div>
-          ))}
+            <span style={{ fontSize: '12px', color: isDark ? '#c8c7d4' : '#3a3832', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{empName}</span>
+          </div>
+
+          {/* Created */}
+          <span style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0' }}>{fmtDate(t.created)}</span>
+
+          {/* Due Date */}
+          <span style={{ fontSize: '11px', color: isOverdue ? '#ff5f6d' : isDark ? '#5a5968' : '#aaa9a0', fontWeight: isOverdue ? 600 : 400 }}>
+            {t.due ? fmtDate(new Date(t.due).getTime()) : '—'}
+          </span>
+
+          {/* Priority */}
+          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', textAlign: 'center', background: `${PRIORITY_COLOR[t.priority]}20`, color: PRIORITY_COLOR[t.priority], fontWeight: 600, textTransform: 'capitalize' }}>
+            {t.priority || '—'}
+          </span>
+
+        {/* Status */}
+<span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', textAlign: 'center', background: `${STATUS_COLOR[t.status]}20`, color: STATUS_COLOR[t.status], textTransform: 'capitalize' }}>
+  {t.status}
+</span>
+
+{/* Comments */}
+<button
+  onClick={() => setCommentTask(t)}
+  style={{
+    background: 'rgba(107,127,255,0.12)', border: 'none',
+    borderRadius: '8px', padding: '4px 10px',
+    color: '#6b7fff', fontSize: '11px', fontWeight: 600,
+    cursor: 'pointer', display: 'flex', alignItems: 'center',
+    gap: '4px', fontFamily: 'DM Sans, sans-serif',
+    transition: 'all 0.15s', position: 'relative',
+  }}
+>
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+  Chat
+  {commentCounts[t.id] > 0 && (
+    <span style={{
+      background: '#6b7fff', color: '#fff',
+      borderRadius: '20px', fontSize: '9px',
+      fontWeight: 700, padding: '1px 5px',
+      marginLeft: '2px',
+    }}>
+      {commentCounts[t.id]}
+    </span>
+  )}
+</button>
+
+</div>
+)
+})}
+  </div>
+)}
+{/* ASSIGN TASK */}
+{tab === 'assign' && (
+  <div style={{ maxWidth: '480px' }}>
+    <div style={v.card}>
+      <div style={v.cardTitle}>Assign task to employee</div>
+
+      {assignMsg.text && (
+        <div style={{
+          padding: '10px 14px', borderRadius: '10px', marginBottom: '16px',
+          fontSize: '13px', lineHeight: 1.5,
+          background: assignMsg.type === 'success' ? 'rgba(78,203,131,0.12)' : 'rgba(255,95,109,0.12)',
+          border: `1px solid ${assignMsg.type === 'success' ? 'rgba(78,203,131,0.3)' : 'rgba(255,95,109,0.3)'}`,
+          color: assignMsg.type === 'success' ? '#4ecb83' : '#ff5f6d',
+        }}>
+          {assignMsg.text}
         </div>
       )}
+
+      <form onSubmit={handleAssignTask} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '6px' }}>Select Employee</label>
+          <select value={assignEmp} onChange={e => setAssignEmp(e.target.value)} style={{ ...v.select, width: '100%' }}>
+            <option value="">— Pick an employee —</option>
+            {employees.filter(e => e.role === 'employee').map(e => (
+              <option key={e.id} value={e.id}>{e.full_name || e.email}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '6px' }}>Task Title</label>
+          <input type="text" value={assignTitle} onChange={e => setAssignTitle(e.target.value)} placeholder="What needs to be done?" style={v.input} />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '6px' }}>Priority</label>
+          <select value={assignPriority} onChange={e => setAssignPriority(e.target.value)} style={{ ...v.select, width: '100%' }}>
+            <option value="high">🔴 High</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '6px' }}>Status</label>
+          <select value={assignStatus} onChange={e => setAssignStatus(e.target.value)} style={{ ...v.select, width: '100%' }}>
+            <option value="todo">To Do</option>
+            <option value="working">Working</option>
+            <option value="onhold">On Hold</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '6px' }}>Due Date <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></label>
+          <input type="date" value={assignDue} onChange={e => setAssignDue(e.target.value)} style={v.input} />
+        </div>
+
+        <button type="submit" style={{ ...v.submitBtn, opacity: assignLoading ? 0.7 : 1 }} disabled={assignLoading}>
+          {assignLoading ? 'Assigning…' : '📌 Assign Task'}
+        </button>
+
+      </form>
+    </div>
+  </div>
+)}
 
       {/* ADD EMPLOYEE */}
       {tab === 'invite' && (
@@ -378,7 +589,7 @@ console.log("SIGNUP ERROR:", error)
                 background: inviteMsg.type === 'success' ? 'rgba(78,203,131,0.12)' : 'rgba(255,95,109,0.12)',
                 border: `1px solid ${inviteMsg.type === 'success' ? 'rgba(78,203,131,0.3)' : 'rgba(255,95,109,0.3)'}`,
                 color: inviteMsg.type === 'success' ? '#4ecb83' : '#ff5f6d',
-              }}>
+                 }}>
                 {inviteMsg.text}
               </div>
             )}
@@ -418,6 +629,16 @@ console.log("SIGNUP ERROR:", error)
             You can change anyone's role from the Employees tab at any time.
           </div>
         </div>
+      )}
+   {createPortal(
+        <TaskCommentsModal
+  task={commentTask}
+  open={!!commentTask}
+  onClose={() => setCommentTask(null)}
+  isDark={isDark}
+  employees={employees}
+/>,
+        document.body
       )}
     </div>
   )

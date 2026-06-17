@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi'
+import TaskEditModal from './TaskEditModal'
+import { createPortal } from 'react-dom'
+import TaskCommentsModal from './TaskCommentsModal'
 
 
 const PRIORITY_META = {
@@ -37,23 +40,14 @@ export default function TaskCard({
 
 }) {
   // console.log(task);
-  const [editing, setEditing] = useState(false)
-  const [editVal, setEditVal] = useState(task.title)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
   const [touching, setTouching] = useState(false)
   const cardRef = useRef(null)
   const cloneRef = useRef(null)
   const isDraggingFromCard = useRef(false)
   const pm = PRIORITY_META[task.priority] || PRIORITY_META.medium
 
-  useEffect(() => {
-    if (editing) { cardRef.current?.querySelector('input')?.focus() }
-  }, [editing])
-
-  const confirmEdit = () => {
-    setEditing(false)
-    if (editVal.trim() && editVal.trim() !== task.title) onEdit(editVal.trim())
-    else setEditVal(task.title)
-  }
 
   /* ── MOUSE drag — only starts from the card body, never from buttons ── */
   const handleMouseDown = useCallback((e) => {
@@ -117,7 +111,7 @@ export default function TaskCard({
 
     document.addEventListener('touchmove', onMove, { passive: false })
     document.addEventListener('touchend', onEnd)
-  }, [editing, onDragStart, onDragEnd, onTouchMove, onTouchDrop])
+  }, [onDragStart, onDragEnd, onTouchMove, onTouchDrop])
 
   const due = task.due
   const dueCls = isOverdue(due)
@@ -131,7 +125,7 @@ export default function TaskCard({
   return (
     <li
       ref={cardRef}
-      draggable={!editing}
+      draggable={true}
       onMouseDown={handleMouseDown}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -150,90 +144,85 @@ export default function TaskCard({
     >
       {/* Title row */}
       <div className="flex items-start gap-2 mb-2.5">
-        {editing ? (
-          <input
-            type="text"
-            value={editVal}
-            onChange={e => setEditVal(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') confirmEdit()
-              if (e.key === 'Escape') { setEditing(false); setEditVal(task.title) }
-            }}
-            onBlur={confirmEdit}
-            style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
-            className="flex-1 bg-surface3 border border-accent rounded-md px-2.5 py-1.5
-              text-text1 text-[0.88rem] font-body outline-none
-              shadow-[0_0_0_3px_rgba(232,160,74,0.15)]"
-          />
-        ) : (
-          <span className={`flex-1 text-[0.88rem] font-medium leading-[1.4] ${task.status === 'completed' ? 'line-through text-text3' : 'text-text1'
-            }`}>
-            {task.title}
-          </span>
-        )}
+        <span className={`flex-1 text-[0.88rem] font-medium leading-[1.4] ${task.status === 'completed' ? 'line-through text-text3' : 'text-text1'}`}>
+          {task.title}
+        </span>
+
 
         {/* ── ACTION BUTTONS
              data-actions marks this zone — drag handlers check for it
              and bail out so buttons always receive clicks normally      ── */}
-        {!editing && (
-          <div
+
+        <div
+          data-actions="true"
+          className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0"
+        >
+          {/* 👁 VIEW */}
+          <button
+            type="button"
             data-actions="true"
-            className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0"
-          >
-            {/* 👁 VIEW */}
-            <button
-              type="button"
-              data-actions="true"
-              onClick={(e) => {
-                e.stopPropagation()
-                e.preventDefault()
-                onView?.(task)
-              }}
-              className="w-[26px] h-[26px] rounded-md border border-transparent
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              onView?.(task)
+            }}
+            className="w-[26px] h-[26px] rounded-md border border-transparent
                 text-text3 flex items-center justify-center
                 hover:bg-[rgba(107,127,255,0.15)]
                 hover:border-[rgba(107,127,255,0.3)]
                 hover:text-[#6b7fff]
                 transition-all duration-200"
-              style={{ cursor: 'pointer', background: 'transparent' }}
-              title="View details"
-            >
-              <FiEye size={14} />
-            </button>
+            style={{ cursor: 'pointer', background: 'transparent' }}
+            title="View details"
+          >
+            <FiEye size={14} />
+          </button>
+          {/* 💬 COMMENTS */}
+          <button
+            type="button"
+            data-actions="true"
+            onClick={() => setCommentsOpen(true)}
+            className="p-1.5 rounded-lg text-text3 hover:text-text1 hover:bg-surface3 transition-colors"
+            title="Comments"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
 
-            {/* ✎ EDIT */}
-            <button
-              type="button"
-              data-actions="true"
-              onClick={() => setEditing(true)}
-              className="w-[26px] h-[26px] rounded-md border border-transparent
+          {/* ✎ EDIT */}
+          <button
+            type="button"
+            data-actions="true"
+            onClick={() => setEditModalOpen(true)}
+            className="w-[26px] h-[26px] rounded-md border border-transparent
               text-text3 flex items-center justify-center
               hover:bg-surface3 hover:border-white/[0.14] hover:text-text1
               transition-all duration-200"
-              style={{ cursor: 'pointer', background: 'transparent' }}
-              title="Edit"
-            >
-              <FiEdit2 size={14} />
-            </button>
+            style={{ cursor: 'pointer', background: 'transparent' }}
+            title="Edit"
+          >
+            <FiEdit2 size={14} />
+          </button>
 
-            {/* ✕ DELETE */}
-            <button
-              type="button"
-              data-actions="true"
-              onClick={() => onDelete?.()}
-              className="w-[30px] h-[30px] rounded-md border border-transparent
+          {/* ✕ DELETE */}
+          <button
+            type="button"
+            data-actions="true"
+            onClick={() => onDelete?.()}
+            className="w-[30px] h-[30px] rounded-md border border-transparent
                 text-text3 flex items-center justify-center
                 hover:bg-[rgba(255,95,109,0.15)]
                 hover:border-[rgba(255,95,109,0.3)]
                 hover:text-[#ff5f6d]
                 transition-all duration-200"
-              style={{ cursor: 'pointer', background: 'transparent' }}
-              title="Delete"
-            >
-              <FiTrash2 size={15} />
-            </button>
-          </div>
-        )}
+            style={{ cursor: 'pointer', background: 'transparent' }}
+            title="Delete"
+          >
+            <FiTrash2 size={15} />
+          </button>
+        </div>
+
       </div>
 
       {/* Meta row */}
@@ -247,6 +236,24 @@ export default function TaskCard({
           </span>
         )}
       </div>
+
+      {createPortal(
+        <TaskEditModal
+          task={task}
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={(_id, updates) => onEdit(updates)}
+        />,
+        document.body
+      )}
+      {createPortal(
+        <TaskCommentsModal
+          task={task}
+          open={commentsOpen}
+          onClose={() => setCommentsOpen(false)}
+        />,
+        document.body
+      )}
     </li>
   )
 }
