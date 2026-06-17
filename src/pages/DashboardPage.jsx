@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNotifications } from '../hooks/useNotifications'
 
 const DAY = 86400000
@@ -64,8 +64,10 @@ function Sparkline({ data, color }) {
   )
 }
 
-export default function DashboardPage({ tasks, onNavigate }) {
+export default function DashboardPage({ tasks, profile, onNavigate }) {
   const now = Date.now()
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const { pendingTasks } = useNotifications(tasks, profile)
 
   const stats = useMemo(() => {
     const counts = { todo: 0, working: 0, completed: 0, onhold: 0 }
@@ -105,14 +107,68 @@ export default function DashboardPage({ tasks, onNavigate }) {
   return (
     <div style={{ color: v('text1'), fontFamily: 'DM Sans, sans-serif' }}>
 
+      {/* ── PENDING TASKS BANNER ── */}
+      {!bannerDismissed && pendingTasks.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          gap: '12px',
+          background: 'rgba(232,160,74,0.10)',
+          border: '1px solid rgba(232,160,74,0.30)',
+          borderRadius: '14px',
+          padding: '14px 18px',
+          marginBottom: '20px',
+          fontFamily: 'DM Sans, sans-serif',
+        }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>⏰</span>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#e8a04a', marginBottom: '4px' }}>
+                {pendingTasks.length} task{pendingTasks.length > 1 ? 's are' : ' is'} pending with no due date
+              </div>
+              <div style={{ fontSize: '12px', color: '#b07830', lineHeight: 1.6 }}>
+                {pendingTasks.slice(0, 3).map(t => t.title).join(', ')}
+                {pendingTasks.length > 3 && ` +${pendingTasks.length - 3} more`}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            style={{
+              background: 'none', border: 'none',
+              color: '#e8a04a', cursor: 'pointer',
+              fontSize: '16px', padding: '0', lineHeight: 1,
+              flexShrink: 0, marginTop: '1px',
+            }}
+            title="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ── greeting ── */}
       <div style={{ marginBottom: '28px' }}>
         <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '26px', letterSpacing: '-0.03em', marginBottom: '4px' }}>
-          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, John 👋
+          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {profile?.full_name?.split(' ')[0] || 'there'} 👋
         </div>
-        <div style={{ fontSize: '14px', color: v('text2') }}>
-          Here's your workspace overview for {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </div>
+        <div style={{ fontSize: '14px', color: v('text2'), marginBottom: '8px' }}>
+  Here's your workspace overview for {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+</div>
+<div style={{
+  fontSize: '13px', color: v('text3'),
+  fontStyle: 'italic', borderLeft: '3px solid rgba(232,160,74,0.4)',
+  paddingLeft: '10px', lineHeight: 1.6,
+}}>
+  {[
+    "The secret of getting ahead is getting started.",
+    "Focus on being productive instead of busy.",
+    "Small progress is still progress.",
+    "Done is better than perfect.",
+    "Your only limit is your mind.",
+    "Work hard in silence, let success make the noise.",
+    "Push yourself, because no one else is going to do it for you.",
+  ][new Date().getDay() % 7]}
+</div>
       </div>
 
       {/* ── TOP STAT CARDS ── */}

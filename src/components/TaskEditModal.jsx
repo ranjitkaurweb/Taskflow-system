@@ -13,7 +13,7 @@ const PRIORITIES = [
   { value: 'low',    label: '🟢 Low' },
 ]
 
-export default function TaskEditModal({ task, open, onClose, onSave }) {
+export default function TaskEditModal({ task, open, onClose, onSave, isDark = true }) {
   const [title,    setTitle]    = useState('')
   const [status,   setStatus]   = useState('todo')
   const [priority, setPriority] = useState('medium')
@@ -44,20 +44,20 @@ export default function TaskEditModal({ task, open, onClose, onSave }) {
 
   if (!open || !task) return null
 
-  const inputStyle = {
-    width: '100%', padding: '10px 13px', borderRadius: '9px',
-    boxSizing: 'border-box',
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: '#1e1e28',
-    color: '#f0eff5',
-    fontSize: '13px', fontFamily: 'DM Sans, sans-serif', outline: 'none',
-  }
+ const inputStyle = {
+  width: '100%', padding: '10px 13px', borderRadius: '9px',
+  boxSizing: 'border-box',
+  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.10)'}`,
+  background: isDark ? '#1e1e28' : '#f7f3ee',
+  color: isDark ? '#f0eff5' : '#1a1814',
+  fontSize: '13px', fontFamily: 'DM Sans, sans-serif', outline: 'none',
+}
 
-  const labelStyle = {
-    display: 'block', fontSize: '11px', fontWeight: 600,
-    textTransform: 'uppercase', letterSpacing: '0.07em',
-    color: '#5a5968', marginBottom: '6px',
-  }
+const labelStyle = {
+  display: 'block', fontSize: '11px', fontWeight: 600,
+  textTransform: 'uppercase', letterSpacing: '0.07em',
+  color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '6px',
+}
 
   const selectStyle = {
     ...inputStyle,
@@ -87,20 +87,18 @@ export default function TaskEditModal({ task, open, onClose, onSave }) {
 
       <div
         style={{
-          background: '#111118',
-          border: '1px solid rgba(255,255,255,0.10)',
-          borderRadius: '20px',
-          padding: '28px',
-          width: '100%', maxWidth: '460px',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-          animation: 'tf-slide-up 0.18s ease',
-          display: 'flex', flexDirection: 'column', gap: '18px',
+       background: isDark ? '#111118' : '#ffffff',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.09)'}`,
+        borderRadius: '20px',
+        padding: '28px',
+        width: '100%', maxWidth: '460px',
+        boxShadow: isDark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 40px rgba(0,0,0,0.15)',
         }}
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '17px', color: '#f0eff5', letterSpacing: '-0.02em' }}>
+            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '17px', color: isDark ? '#f0eff5' : '#1a1814', letterSpacing: '-0.02em' }}>
               Edit Task
             </div>
             <div style={{ fontSize: '12px', color: '#5a5968', marginTop: '2px' }}>

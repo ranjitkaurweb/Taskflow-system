@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useTheme } from './ThemeContext'
 import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi'
 import TaskEditModal from './TaskEditModal'
 import { createPortal } from 'react-dom'
 import TaskCommentsModal from './TaskCommentsModal'
+
 
 
 const PRIORITY_META = {
@@ -40,6 +42,8 @@ export default function TaskCard({
 
 }) {
   // console.log(task);
+  const { theme } = useTheme()
+const isDark = theme === 'dark'
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [touching, setTouching] = useState(false)
@@ -71,8 +75,7 @@ export default function TaskCard({
   }, [onDragEnd])
 
   /* ── TOUCH drag ── */
-  const handleTouchStart = useCallback((e) => {
-    if (editing) return
+const handleTouchStart = useCallback((e) => {
     if (e.target.closest('[data-actions]')) return   // touches on buttons → don't drag
 
     const touch = e.touches[0]
@@ -243,6 +246,7 @@ export default function TaskCard({
           open={editModalOpen}
           onClose={() => setEditModalOpen(false)}
           onSave={(_id, updates) => onEdit(updates)}
+           isDark={isDark}
         />,
         document.body
       )}
@@ -251,6 +255,7 @@ export default function TaskCard({
           task={task}
           open={commentsOpen}
           onClose={() => setCommentsOpen(false)}
+          isDark={isDark}
         />,
         document.body
       )}

@@ -18,6 +18,7 @@ const fromRow = (row) => ({
   completedAt: row.completed_at || null,
   userId:      row.user_id || null,
   assignedTo:  row.assigned_to || null,
+  deletedAt:   row.deleted_at  || null,
 })
 
 // Our task object → Supabase row
@@ -65,10 +66,11 @@ export function useTasks() {
 
       // Supabase RLS handles filtering automatically:
       // admin → gets all rows, employee → gets only their rows
-      const { data, error: err } = await supabase
-        .from('tasks')
-        .select('*')
-        .order('created', { ascending: false })
+    const { data, error: err } = await supabase
+  .from('tasks')
+  .select('*')
+  .is('deleted_at', null)
+  .order('created', { ascending: false })
 
       if (!mounted) return
       if (err) { setError(err.message); setLoading(false); return }
@@ -88,11 +90,16 @@ export function useTasks() {
           if (payload.eventType === 'INSERT') {
             setTasks(prev => [fromRow(payload.new), ...prev])
           }
-          if (payload.eventType === 'UPDATE') {
-            setTasks(prev => prev.map(t =>
-              t.id === payload.new.id ? fromRow(payload.new) : t
-            ))
-          }
+         if (payload.eventType === 'UPDATE') {
+  // If soft deleted, remove from list
+  if (payload.new.deleted_at) {
+    setTasks(prev => prev.filter(t => t.id !== payload.new.id))
+  } else {
+    setTasks(prev => prev.map(t =>
+      t.id === payload.new.id ? fromRow(payload.new) : t
+    ))
+  }
+}
           if (payload.eventType === 'DELETE') {
             setTasks(prev => prev.filter(t => t.id !== payload.old.id))
           }
@@ -132,14 +139,18 @@ export function useTasks() {
 const deleteTask = useCallback(async (id) => {
   // Get task details before deleting
   const task = tasks.find(t => t.id === id)
-  
-  // Optimistic update
+
+  // Optimistic update — remove from active tasks
   setTasks(prev => prev.filter(t => t.id !== id))
 
-  // Delete from DB
-  const { error: err } = await supabase
-    .from('tasks').delete().eq('id', id)
-  if (err) { console.error('deleteTask error:', err.message); return }
+  // Soft delete — mark deleted_at instead of hard delete
+const { data: updateData, error: err } = await supabase
+  .from('tasks')
+  .update({ deleted_at: Date.now() })
+  .eq('id', id)
+  .select()
+
+if (err) { console.error('deleteTask error:', err.message); return }
 
   if (!task) return
 

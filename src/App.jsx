@@ -21,7 +21,7 @@ import NotificationBell  from './components/NotificationBell'
 function AppInner() {
   const { tasks, addTask, deleteTask, editTask, moveTask, loading, error } = useTasks()
   const { theme }    = useTheme()
-  const { isAdmin }  = useAuth()
+  const { isAdmin, profile } = useAuth()
   const isDark       = theme === 'dark'
 
   const [activePage,  setActivePage]  = useState('Dashboard')
@@ -85,7 +85,7 @@ function AppInner() {
     if (error)   return <ErrorScreen />
 
     switch (activePage) {
-      case 'Dashboard': return <DashboardPage tasks={tasks} onNavigate={setActivePage} />
+      case 'Dashboard': return <DashboardPage tasks={tasks} profile={profile} onNavigate={setActivePage} />
       case 'Timeline':  return <TimelinePage  tasks={tasks} />
       case 'Reports':   return <ReportsPage   tasks={tasks} />
       case 'Admin':

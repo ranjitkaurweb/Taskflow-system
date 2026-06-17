@@ -72,6 +72,7 @@ export default function AdminPage() {
   const [taskFilter,    setTaskFilter]    = useState('all')
  const [empFilter,     setEmpFilter]     = useState('all')
  const [commentTask,   setCommentTask]   = useState(null)
+ const [deletedTasks,  setDeletedTasks]  = useState([])
  const [commentCounts, setCommentCounts] = useState({})
   const [assignEmp,     setAssignEmp]     = useState('')
 const [assignTitle,   setAssignTitle]   = useState('')
@@ -84,12 +85,14 @@ const [assignLoading, setAssignLoading] = useState(false)
   useEffect(() => {
     async function loadData() {
       setLoading(true)
-   const [empRes, taskRes] = await Promise.all([
+  const [empRes, taskRes, deletedRes] = await Promise.all([
   supabase.from('profiles').select('*').order('joined_at', { ascending: false }),
-  supabase.from('tasks').select('*').order('created', { ascending: false }),
+  supabase.from('tasks').select('*').is('deleted_at', null).order('created', { ascending: false }),
+  supabase.from('tasks').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
 ])
-if (empRes.data)  setEmployees(empRes.data)
-if (taskRes.data) setAllTasks(taskRes.data)
+if (empRes.data)     setEmployees(empRes.data)
+if (taskRes.data)    setAllTasks(taskRes.data)
+if (deletedRes.data) setDeletedTasks(deletedRes.data)
   // Fetch comment counts
 const { data: commentData } = await supabase
   .from('task_comments')
@@ -105,7 +108,7 @@ if (commentData) {
       setLoading(false)
     }
     loadData()
-  }, [])
+  }, [tab])
   // ── ASSIGN TASK ──
 const handleAssignTask = async (e) => {
   e.preventDefault()
@@ -506,6 +509,87 @@ console.log("SIGNUP ERROR:", error)
 </div>
 )
 })}
+ {/* Deleted Tasks Section */}
+    {deletedTasks.length > 0 && (
+      <div style={{ marginTop: '28px' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          marginBottom: '12px',
+        }}>
+          <div style={{ height: '1px', flex: 1, background: 'rgba(255,95,109,0.15)' }} />
+          <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#ff5f6d' }}>
+            🗑️ Deleted Tasks ({deletedTasks.length})
+          </span>
+          <div style={{ height: '1px', flex: 1, background: 'rgba(255,95,109,0.15)' }} />
+        </div>
+
+        {deletedTasks.map(t => {
+          const emp = employees.find(e => e.id === (t.user_id || t.userId))
+          const empName = emp?.full_name || emp?.email || 'Unknown'
+          const empInitial = empName.charAt(0).toUpperCase()
+          return (
+            <div key={t.id} style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 140px 100px 100px',
+              gap: '8px', alignItems: 'center',
+              padding: '10px 12px',
+              marginBottom: '4px',
+              borderRadius: '10px',
+              background: 'rgba(255,95,109,0.05)',
+              border: '1px solid rgba(255,95,109,0.12)',
+              opacity: 0.8,
+            }}>
+
+              {/* Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#ff5f6d', flexShrink: 0 }} />
+                <span style={{
+                  fontSize: '13px', fontWeight: 500,
+                  color: isDark ? '#8b8a9b' : '#aaa9a0',
+                  textDecoration: 'line-through',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {t.title}
+                </span>
+              </div>
+
+              {/* Employee */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                <div style={{
+                  width: '22px', height: '22px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg,#ff5f6d,#ff8c94)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '9px', fontWeight: 700, color: '#fff', flexShrink: 0,
+                }}>
+                  {empInitial}
+                </div>
+                <span style={{ fontSize: '12px', color: isDark ? '#5a5968' : '#aaa9a0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {empName}
+                </span>
+              </div>
+
+              {/* Priority */}
+              <span style={{
+                fontSize: '11px', padding: '2px 8px', borderRadius: '20px',
+                textAlign: 'center',
+                background: `${PRIORITY_COLOR[t.priority]}15`,
+                color: isDark ? '#5a5968' : '#aaa9a0',
+                textTransform: 'capitalize',
+              }}>
+                {t.priority || '—'}
+              </span>
+
+              {/* Deleted at */}
+              <span style={{ fontSize: '11px', color: '#ff5f6d' }}>
+                🗑️ {fmtDate(t.deleted_at)}
+              </span>
+
+            </div>
+          )
+        })}
+      </div>
+    )}
+
   </div>
 )}
 {/* ASSIGN TASK */}
