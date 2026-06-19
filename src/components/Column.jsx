@@ -1,15 +1,23 @@
 import React, { useState, useRef } from 'react'
 import TaskCard from './TaskCard'
 
+const EMPTY_META = {
+  todo:      { icon: '📋', text: 'No tasks yet',       sub: 'Add a task below to get started' },
+  working:   { icon: '⚡', text: 'Nothing in progress', sub: 'Move a task here to start working' },
+  completed: { icon: '✅', text: 'Nothing completed',   sub: 'Completed tasks will appear here' },
+  onhold:    { icon: '⏸️', text: 'Nothing on hold',     sub: 'Paused tasks will appear here' },
+}
+
 export default function Column({
   status, meta, tasks,
   draggingId, isDragOver,
   onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
   onTouchMove, onTouchDrop,
-  onAdd, onDelete, onEdit, onView,
+  onAdd, onDelete, onEdit, onView, commentCounts = {}, onMarkCommentRead,
 }) {
   const [inputVal, setInputVal] = useState('')
   const inputRef = useRef(null)
+  const empty = EMPTY_META[status] || EMPTY_META.todo
 
   const handleAdd = () => {
     if (inputVal.trim()) { onAdd(inputVal.trim()); setInputVal('') }
@@ -37,22 +45,61 @@ export default function Column({
       </div>
 
       {/* Task list */}
-      <ul data-status={status}
-        className="flex flex-col gap-2.5 mb-3.5 min-h-[80px] max-h-[calc(100vh-400px)] overflow-y-auto pr-0.5">
-        {tasks.map(task => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            isDragging={draggingId === task.id}
-            onDragStart={() => onDragStart(task.id)}
-            onDragEnd={onDragEnd}
-            onTouchMove={onTouchMove}
-            onTouchDrop={onTouchDrop}
-            onDelete={() => onDelete(task.id)}
-            onEdit={(updates) => onEdit(task.id, updates)}
-            onView={onView}
-          />
-        ))}
+      <ul
+        data-status={status}
+        className="flex flex-col gap-2.5 mb-3.5 min-h-[80px] max-h-[calc(100vh-400px)] overflow-y-auto pr-0.5"
+      >
+        {tasks.length === 0 && !isDragOver ? (
+          /* ── Empty state ── */
+          <li
+            data-status={status}
+            style={{
+              listStyle: 'none',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              minHeight: '120px', padding: '20px 16px',
+              borderRadius: '12px',
+              border: '1.5px dashed rgba(255,255,255,0.08)',
+              textAlign: 'center',
+              gap: '6px',
+            }}
+          >
+            <span style={{ fontSize: '26px', opacity: 0.35, lineHeight: 1 }}>{empty.icon}</span>
+            <span style={{
+              fontSize: '12px', fontWeight: 600,
+              color: 'var(--t-text2)',
+              fontFamily: 'DM Sans, sans-serif',
+            }}>
+              {empty.text}
+            </span>
+            <span style={{
+              fontSize: '11px',
+              color: 'var(--t-text3)',
+              fontFamily: 'DM Sans, sans-serif',
+              lineHeight: 1.5,
+            }}>
+              {empty.sub}
+            </span>
+          </li>
+        ) : (
+          tasks.map(task => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              isDragging={draggingId === task.id}
+              onDragStart={() => onDragStart(task.id)}
+              onDragEnd={onDragEnd}
+              onTouchMove={onTouchMove}
+              onTouchDrop={onTouchDrop}
+              onDelete={() => onDelete(task.id)}
+              onEdit={(updates) => onEdit(task.id, updates)}
+              commentCount={commentCounts[task.id] || 0}
+              onMarkCommentRead={onMarkCommentRead}
+              employeeName={task.employeeName || ''}
+              onView={onView}
+            />
+          ))
+        )}
         {isDragOver && draggingId && (
           <li className="drop-ghost" aria-hidden="true" data-status={status} />
         )}
@@ -72,11 +119,13 @@ export default function Column({
             focus:border-accent focus:bg-surface2 focus:shadow-[0_0_0_3px_rgba(232,160,74,0.12)]
             transition-all duration-200"
         />
-        <button onClick={handleAdd}
+        <button
+          onClick={handleAdd}
           className="w-[34px] h-[34px] rounded-lg bg-[rgba(232,160,74,0.12)] border border-[rgba(232,160,74,0.2)]
             text-accent flex-shrink-0 flex items-center justify-center cursor-pointer
             hover:bg-accent hover:text-[#1a1000] hover:shadow-accent transition-all duration-200"
-          title="Add task">
+          title="Add task"
+        >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>

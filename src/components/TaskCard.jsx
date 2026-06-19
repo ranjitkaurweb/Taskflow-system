@@ -1,16 +1,28 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { useTheme } from './ThemeContext'
 import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi'
 import TaskEditModal from './TaskEditModal'
 import { createPortal } from 'react-dom'
 import TaskCommentsModal from './TaskCommentsModal'
 
-
-
 const PRIORITY_META = {
-  high: { label: 'High', icon: '↑', bg: 'bg-[rgba(255,95,109,0.15)]', text: 'text-[#ff5f6d]', stripe: 'border-l-[3px] border-l-[#ff5f6d]' },
-  medium: { label: 'Medium', icon: '–', bg: 'bg-[rgba(232,160,74,0.15)]', text: 'text-[#e8a04a]', stripe: 'border-l-[3px] border-l-[#e8a04a]' },
-  low: { label: 'Low', icon: '↓', bg: 'bg-[rgba(78,203,131,0.15)]', text: 'text-[#4ecb83]', stripe: 'border-l-[3px] border-l-[#4ecb83]' },
+  high:   { label: 'High',   color: '#ff5f6d', bg: 'rgba(255,95,109,0.13)',  border: '#ff5f6d' },
+  medium: { label: 'Medium', color: '#e8a04a', bg: 'rgba(232,160,74,0.13)',  border: '#e8a04a' },
+  low:    { label: 'Low',    color: '#4ecb83', bg: 'rgba(78,203,131,0.13)',  border: '#4ecb83' },
+}
+
+const AVATAR_COLORS = [
+  'linear-gradient(135deg,#6b7fff,#9b7fe8)',
+  'linear-gradient(135deg,#e8a04a,#ff8c42)',
+  'linear-gradient(135deg,#4ecb83,#6ddbaa)',
+  'linear-gradient(135deg,#ff5f6d,#ff8c94)',
+  'linear-gradient(135deg,#9b7fe8,#6b7fff)',
+]
+
+function getAvatarColor(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
 function formatDue(dateStr) {
@@ -24,47 +36,35 @@ const isDueSoon = (d) => {
   return diff >= 0 && diff <= 2
 }
 
-function EyeIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  )
-}
-
 export default function TaskCard({
   task, isDragging,
   onDragStart, onDragEnd,
   onTouchMove, onTouchDrop,
   onDelete, onEdit, onView,
-
+  commentCount = 0,
+  onMarkCommentRead,
 }) {
-  // console.log(task);
   const { theme } = useTheme()
-const isDark = theme === 'dark'
+  const isDark = theme === 'dark'
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [commentsOpen, setCommentsOpen] = useState(false)
-  const [touching, setTouching] = useState(false)
-  const cardRef = useRef(null)
-  const cloneRef = useRef(null)
+  const [commentsOpen,  setCommentsOpen]  = useState(false)
+  const [touching,      setTouching]      = useState(false)
+  const [hovered,       setHovered]       = useState(false)
+  const cardRef            = useRef(null)
+  const cloneRef           = useRef(null)
   const isDraggingFromCard = useRef(false)
-  const pm = PRIORITY_META[task.priority] || PRIORITY_META.medium
+  const pm      = PRIORITY_META[task.priority] || PRIORITY_META.medium
+  const due     = task.due
+const initial = (task.employeeName || task.title || '?').charAt(0).toUpperCase()
+const avatarGrad = getAvatarColor(task.userId || task.id || '?')
 
-
-  /* ── MOUSE drag — only starts from the card body, never from buttons ── */
   const handleMouseDown = useCallback((e) => {
-    // If the click target is a button or inside the actions div, do nothing
     if (e.target.closest('[data-actions]')) return
     isDraggingFromCard.current = true
   }, [])
 
   const handleDragStart = useCallback((e) => {
-    if (!isDraggingFromCard.current) {
-      e.preventDefault()
-      return
-    }
+    if (!isDraggingFromCard.current) { e.preventDefault(); return }
     isDraggingFromCard.current = false
     onDragStart?.()
   }, [onDragStart])
@@ -74,33 +74,27 @@ const isDark = theme === 'dark'
     onDragEnd?.()
   }, [onDragEnd])
 
-  /* ── TOUCH drag ── */
-const handleTouchStart = useCallback((e) => {
-    if (e.target.closest('[data-actions]')) return   // touches on buttons → don't drag
-
+  const handleTouchStart = useCallback((e) => {
+    if (e.target.closest('[data-actions]')) return
     const touch = e.touches[0]
-    const startX = touch.clientX
-    const startY = touch.clientY
+    const startX = touch.clientX, startY = touch.clientY
     let started = false
 
     const onMove = (ev) => {
       const t = ev.touches[0]
       if (!started && (Math.abs(t.clientX - startX) > 6 || Math.abs(t.clientY - startY) > 6)) {
-        started = true
-        setTouching(true)
-        onDragStart?.()
+        started = true; setTouching(true); onDragStart?.()
         const rect = cardRef.current.getBoundingClientRect()
         const ghost = cardRef.current.cloneNode(true)
         ghost.id = 'touch-drag-ghost'
         ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;transform:scale(1.04) rotate(1.5deg);pointer-events:none;z-index:9999;transition:none;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.4);`
-        document.body.appendChild(ghost)
-        cloneRef.current = ghost
+        document.body.appendChild(ghost); cloneRef.current = ghost
       }
       if (!started) return
       ev.preventDefault()
       const t2 = ev.touches[0], rect = cardRef.current.getBoundingClientRect()
       cloneRef.current.style.left = `${t2.clientX - rect.width / 2}px`
-      cloneRef.current.style.top = `${t2.clientY - 30}px`
+      cloneRef.current.style.top  = `${t2.clientY - 30}px`
       onTouchMove?.(t2.clientX, t2.clientY)
     }
 
@@ -116,149 +110,215 @@ const handleTouchStart = useCallback((e) => {
     document.addEventListener('touchend', onEnd)
   }, [onDragStart, onDragEnd, onTouchMove, onTouchDrop])
 
-  const due = task.due
-  const dueCls = isOverdue(due)
-    ? 'text-[#ff5f6d] bg-[rgba(255,95,109,0.12)]'
+  // Due chip colors
+  const dueStyle = isOverdue(due)
+    ? { color: '#ff5f6d', bg: 'rgba(255,95,109,0.10)' }
     : isDueSoon(due)
-      ? 'text-[#e8a04a] bg-[rgba(232,160,74,0.12)]'
-      : 'text-text3 bg-surface3'
+    ? { color: '#e8a04a', bg: 'rgba(232,160,74,0.10)' }
+    : { color: isDark ? '#5a5968' : '#9a9890', bg: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }
 
-  // const [viewingTask, setViewingTask] = useState(null)
+  // Card styles
+  const cardBg     = isDark ? '#16161d' : '#ffffff'
+  const cardBorder = isDark ? `rgba(255,255,255,0.07)` : `rgba(0,0,0,0.08)`
+  const titleColor = isDark ? '#f0eff5' : '#1a1814'
+  const mutedColor = isDark ? '#5a5968' : '#aaa9a0'
+  const actionHoverBg = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'
 
-  return (
-    <li
-      ref={cardRef}
-      draggable={true}
-      onMouseDown={handleMouseDown}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onTouchStart={handleTouchStart}
-      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
-      className={`
-        bg-surface2 border border-white/[0.07] rounded-2xl p-3.5 relative group
-        cursor-grab active:cursor-grabbing
-        animate-card-in transition-all duration-200
-        ${pm.stripe}
-        ${isDragging || touching
-          ? 'opacity-40 scale-[0.96]'
-          : 'hover:-translate-y-0.5 hover:border-white/[0.14] hover:shadow-card'}
-        ${task.status === 'completed' ? 'opacity-70' : ''}
-      `}
-    >
-      {/* Title row */}
-      <div className="flex items-start gap-2 mb-2.5">
-        <span className={`flex-1 text-[0.88rem] font-medium leading-[1.4] ${task.status === 'completed' ? 'line-through text-text3' : 'text-text1'}`}>
-          {task.title}
+ return (
+  <li
+    ref={cardRef}
+    draggable={true}
+    onMouseDown={handleMouseDown}
+    onDragStart={handleDragStart}
+    onDragEnd={handleDragEnd}
+    onTouchStart={handleTouchStart}
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+    style={{
+      listStyle: 'none',
+      userSelect: 'none', WebkitUserSelect: 'none',
+      background: '#ffffff',
+     border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.09)'}`,
+borderLeft: `3px solid ${pm.border}`,
+      borderRadius: '14px',
+      padding: '14px 14px 12px',
+      position: 'relative',
+      cursor: 'grab',
+      transition: 'all 0.18s ease',
+      opacity: (isDragging || touching) ? 0.4 : task.status === 'completed' ? 0.65 : 1,
+      transform: hovered && !isDragging && !touching ? 'translateY(-2px)' : (isDragging || touching) ? 'scale(0.96)' : '',
+    boxShadow: hovered
+  ? isDark
+    ? `0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 0 0 1px ${pm.border}22`
+    : '0 6px 18px rgba(0,0,0,0.10)'
+  : isDark
+    ? 'inset 0 0 0 0.5px rgba(255,255,255,0.06), 0 2px 12px rgba(0,0,0,0.35)'
+    : '0 1px 4px rgba(0,0,0,0.06)',
+     backgroundColor: isDark ? 'rgba(22,22,29,0.65)' : '#ffffff',
+backdropFilter: isDark ? 'blur(16px)' : 'none',
+WebkitBackdropFilter: isDark ? 'blur(16px)' : 'none',
+    }}
+  >
+    {/* Glass overlay — dark mode only */}
+{isDark && (
+  <div style={{
+    position: 'absolute', inset: 0, borderRadius: '14px',
+    background: `linear-gradient(135deg, ${pm.border}12 0%, rgba(255,255,255,0.02) 50%, transparent 100%)`,
+    pointerEvents: 'none',
+  }} />
+)}
+    {/* Title */}
+    <div style={{
+      fontSize: '14px', fontWeight: 600,
+      lineHeight: 1.45,
+      color: task.status === 'completed'
+        ? (isDark ? '#5a5968' : '#aaa9a0')
+        : (isDark ? '#f0eff5' : '#1a1814'),
+      textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+      fontFamily: 'DM Sans, sans-serif',
+      marginBottom: '12px',
+    }}>
+      {task.title}
+    </div>
+
+    {/* Priority + Due date row */}
+    <div style={{
+      display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '12px',
+    }}>
+      {/* Priority pill */}
+      <span style={{
+        display: 'inline-flex', alignItems: 'center',
+        padding: '3px 12px', borderRadius: '20px',
+        fontSize: '12px', fontWeight: 600,
+        background: pm.bg, color: pm.color,
+        fontFamily: 'DM Sans, sans-serif',
+      }}>
+        {pm.label}
+      </span>
+
+      {/* Due date */}
+      {due && (
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          fontSize: '12px', fontWeight: 400,
+          color: isOverdue(due) ? '#ff5f6d' : isDueSoon(due) ? '#e8a04a' : (isDark ? '#5a5968' : '#9a9890'),
+          fontFamily: 'DM Sans, sans-serif',
+        }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          {formatDue(due)}
         </span>
+      )}
+    </div>
 
+    {/* Divider */}
+    <div style={{
+      height: '1px',
+      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)',
+      marginBottom: '10px',
+    }} />
 
-        {/* ── ACTION BUTTONS
-             data-actions marks this zone — drag handlers check for it
-             and bail out so buttons always receive clicks normally      ── */}
+    {/* Bottom row — avatar + actions */}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
-        <div
-          data-actions="true"
-          className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0"
-        >
-          {/* 👁 VIEW */}
-          <button
-            type="button"
-            data-actions="true"
-            onClick={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-              onView?.(task)
-            }}
-            className="w-[26px] h-[26px] rounded-md border border-transparent
-                text-text3 flex items-center justify-center
-                hover:bg-[rgba(107,127,255,0.15)]
-                hover:border-[rgba(107,127,255,0.3)]
-                hover:text-[#6b7fff]
-                transition-all duration-200"
-            style={{ cursor: 'pointer', background: 'transparent' }}
-            title="View details"
-          >
-            <FiEye size={14} />
-          </button>
-          {/* 💬 COMMENTS */}
-          <button
-            type="button"
-            data-actions="true"
-            onClick={() => setCommentsOpen(true)}
-            className="p-1.5 rounded-lg text-text3 hover:text-text1 hover:bg-surface3 transition-colors"
-            title="Comments"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-
-          {/* ✎ EDIT */}
-          <button
-            type="button"
-            data-actions="true"
-            onClick={() => setEditModalOpen(true)}
-            className="w-[26px] h-[26px] rounded-md border border-transparent
-              text-text3 flex items-center justify-center
-              hover:bg-surface3 hover:border-white/[0.14] hover:text-text1
-              transition-all duration-200"
-            style={{ cursor: 'pointer', background: 'transparent' }}
-            title="Edit"
-          >
-            <FiEdit2 size={14} />
-          </button>
-
-          {/* ✕ DELETE */}
-          <button
-            type="button"
-            data-actions="true"
-            onClick={() => onDelete?.()}
-            className="w-[30px] h-[30px] rounded-md border border-transparent
-                text-text3 flex items-center justify-center
-                hover:bg-[rgba(255,95,109,0.15)]
-                hover:border-[rgba(255,95,109,0.3)]
-                hover:text-[#ff5f6d]
-                transition-all duration-200"
-            style={{ cursor: 'pointer', background: 'transparent' }}
-            title="Delete"
-          >
-            <FiTrash2 size={15} />
-          </button>
-        </div>
-
+      {/* Avatar */}
+      <div style={{
+        width: '28px', height: '28px', borderRadius: '50%',
+        background: avatarGrad,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '11px', fontWeight: 700, color: '#fff',
+        flexShrink: 0,
+      }}>
+        {initial}
       </div>
 
-      {/* Meta row */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.68rem] font-semibold ${pm.bg} ${pm.text}`}>
-          {pm.icon} {pm.label}
-        </span>
-        {due && (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.68rem] ${dueCls}`}>
-            📅 {formatDue(due)}
-          </span>
+      {/* Right side — action buttons + comment */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} data-actions="true">
+
+        {/* Action buttons — show on hover */}
+        {hovered && (
+          <div style={{ display: 'flex', gap: '2px' }} data-actions="true">
+            <button type="button" data-actions="true"
+              onClick={(e) => { e.stopPropagation(); onView?.(task) }}
+              title="View"
+              style={{ width: '26px', height: '26px', borderRadius: '7px', border: 'none', background: 'transparent', color: isDark ? '#5a5968' : '#aaa9a0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.12s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(107,127,255,0.15)'; e.currentTarget.style.color = '#6b7fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? '#5a5968' : '#aaa9a0' }}
+            ><FiEye size={13} /></button>
+
+            <button type="button" data-actions="true"
+              onClick={() => setEditModalOpen(true)}
+              title="Edit"
+              style={{ width: '26px', height: '26px', borderRadius: '7px', border: 'none', background: 'transparent', color: isDark ? '#5a5968' : '#aaa9a0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.12s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'; e.currentTarget.style.color = isDark ? '#f0eff5' : '#1a1814' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? '#5a5968' : '#aaa9a0' }}
+            ><FiEdit2 size={13} /></button>
+
+            <button type="button" data-actions="true"
+              onClick={() => onDelete?.()}
+              title="Delete"
+              style={{ width: '26px', height: '26px', borderRadius: '7px', border: 'none', background: 'transparent', color: isDark ? '#5a5968' : '#aaa9a0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.12s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,95,109,0.15)'; e.currentTarget.style.color = '#ff5f6d' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? '#5a5968' : '#aaa9a0' }}
+            ><FiTrash2 size={13} /></button>
+          </div>
         )}
-      </div>
 
-      {createPortal(
-        <TaskEditModal
-          task={task}
-          open={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
-          onSave={(_id, updates) => onEdit(updates)}
-           isDark={isDark}
-        />,
-        document.body
-      )}
-      {createPortal(
-        <TaskCommentsModal
-          task={task}
-          open={commentsOpen}
-          onClose={() => setCommentsOpen(false)}
-          isDark={isDark}
-        />,
-        document.body
-      )}
-    </li>
-  )
+        {/* Comment button */}
+        <button
+          type="button"
+          data-actions="true"
+          onClick={() => { setCommentsOpen(true); onMarkCommentRead?.(task.id) }}
+          title="Comments"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            padding: '0', border: 'none', background: 'transparent',
+            color: isDark ? '#5a5968' : '#aaa9a0',
+            cursor: 'pointer', transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#6b7fff' }}
+          onMouseLeave={e => { e.currentTarget.style.color = isDark ? '#5a5968' : '#aaa9a0' }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {commentCount > 0 && (
+            <span style={{
+              background: '#6b7fff', color: '#fff',
+              borderRadius: '20px', fontSize: '11px',
+              fontWeight: 700, padding: '1px 8px',
+              lineHeight: 1.5, fontFamily: 'DM Sans, sans-serif',
+            }}>
+              {commentCount}
+            </span>
+          )}
+        </button>
+
+      </div>
+    </div>
+
+    {createPortal(
+      <TaskEditModal
+        task={task}
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={(_id, updates) => onEdit(updates)}
+        isDark={isDark}
+      />,
+      document.body
+    )}
+    {createPortal(
+      <TaskCommentsModal
+        task={task}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        isDark={isDark}
+      />,
+      document.body
+    )}
+  </li>
+)
 }

@@ -9,18 +9,18 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 
 // Supabase row → our app's task object
 const fromRow = (row) => ({
-  id:          row.id,
-  title:       row.title,
-  status:      row.status,
-  priority:    row.priority,
-  due:         row.due || '',
-  created:     row.created,
-  completedAt: row.completed_at || null,
-  userId:      row.user_id || null,
-  assignedTo:  row.assigned_to || null,
-  deletedAt:   row.deleted_at  || null,
+  id:           row.id,
+  title:        row.title,
+  status:       row.status,
+  priority:     row.priority,
+  due:          row.due || '',
+  created:      row.created,
+  completedAt:  row.completed_at || null,
+  userId:       row.user_id || null,
+  assignedTo:   row.assigned_to || null,
+  deletedAt:    row.deleted_at  || null,
+  employeeName: row.profiles?.full_name || row.profiles?.email || '',
 })
-
 // Our task object → Supabase row
 const toRow = (task, userId) => ({
   id:           task.id,
@@ -66,9 +66,9 @@ export function useTasks() {
 
       // Supabase RLS handles filtering automatically:
       // admin → gets all rows, employee → gets only their rows
-    const { data, error: err } = await supabase
+const { data, error: err } = await supabase
   .from('tasks')
-  .select('*')
+  .select('*, profiles(full_name, email)')
   .is('deleted_at', null)
   .order('created', { ascending: false })
 

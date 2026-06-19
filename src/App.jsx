@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { ThemeProvider } from './components/ThemeContext'
 import { AuthProvider }  from './context/AuthContext'
 import ProtectedRoute    from './components/ProtectedRoute'
@@ -94,7 +94,7 @@ function AppInner() {
             <AdminPage />
           </AdminRoute>
         )
-      case 'Board':
+case 'Board':
       default:
         return (
           <BoardPage

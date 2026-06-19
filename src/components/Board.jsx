@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef } from 'react'
 import Column from './Column'
 
+
 export const STATUSES = ['todo', 'working', 'completed', 'onhold']
 
 export const COLUMN_META = {
@@ -56,6 +57,8 @@ export default function Board({
   onMove,
   onComplete,
   onView,
+  commentCounts = {},
+  onMarkCommentRead,
 }) {
 
   const [draggingId, setDraggingId] = useState(null)
@@ -166,8 +169,9 @@ export default function Board({
           onAdd={(title) => onAdd(title, status)}
 
           onDelete={onDelete}
-
-          onEdit={onEdit}
+onEdit={onEdit}
+commentCounts={commentCounts}
+onMarkCommentRead={onMarkCommentRead}
 
           // ✅ PASS VIEW
           onView={onView}
