@@ -72,6 +72,9 @@ export default function AdminPage() {
   const [taskFilter, setTaskFilter] = useState('all')
   const [empFilter, setEmpFilter] = useState('all')
   const [commentTask, setCommentTask] = useState(null)
+  const [reassignTaskId,    setReassignTaskId]    = useState(null)
+const [reassignEmpId,     setReassignEmpId]     = useState('')
+const [reassignLoading,   setReassignLoading]   = useState(false)
   const [deletedTasks, setDeletedTasks] = useState([])
   const [commentCounts, setCommentCounts] = useState({})
   const [unreadCommentCounts, setUnreadCommentCounts] = useState({})
@@ -123,6 +126,64 @@ export default function AdminPage() {
     }
     loadData()
   }, [tab])
+  // ── REASSIGN TASK ──
+const handleReassign = async (taskId) => {
+  if (!reassignEmpId) return
+  setReassignLoading(true)
+
+  const task = allTasks.find(t => t.id === taskId)
+  const oldOwnerId = task?.user_id
+  const newEmp = employees.find(e => e.id === reassignEmpId)
+  const oldEmp = employees.find(e => e.id === oldOwnerId)
+
+  // Update task in DB
+  const { error } = await supabase
+    .from('tasks')
+    .update({ user_id: reassignEmpId, assigned_to: reassignEmpId })
+    .eq('id', taskId)
+
+  if (error) {
+    console.error('reassign error:', error.message)
+    setReassignLoading(false)
+    return
+  }
+
+  // Update local state
+  setAllTasks(prev => prev.map(t =>
+    t.id === taskId ? { ...t, user_id: reassignEmpId, assigned_to: reassignEmpId } : t
+  ))
+
+  // Send notifications
+  const notifications = []
+
+  // Notify new employee
+  if (reassignEmpId) {
+    notifications.push({
+      user_id:    reassignEmpId,
+      message:    `📌 Task "${task?.title}" has been assigned to you by Admin`,
+      task_title: task?.title,
+      read:       false,
+    })
+  }
+
+  // Notify old employee if different
+  if (oldOwnerId && oldOwnerId !== reassignEmpId) {
+    notifications.push({
+      user_id:    oldOwnerId,
+      message:    `🔄 Task "${task?.title}" has been reassigned to ${newEmp?.full_name || newEmp?.email}`,
+      task_title: task?.title,
+      read:       false,
+    })
+  }
+
+  if (notifications.length > 0) {
+    await supabase.from('notifications').insert(notifications)
+  }
+
+  setReassignTaskId(null)
+  setReassignEmpId('')
+  setReassignLoading(false)
+}
   // ── ASSIGN TASK ──
   const handleAssignTask = async (e) => {
     e.preventDefault()
@@ -420,7 +481,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ALL TASKS */}
+
       {/* ALL TASKS */}
       {tab === 'tasks' && (
         <div style={v.card}>
@@ -444,8 +505,8 @@ export default function AdminPage() {
           </div>
 
           {/* Column labels */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 100px 80px 90px 70px', gap: '8px', padding: '6px 0 10px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`, marginBottom: '4px' }}>
-            {['Task', 'Employee', 'Created', 'Due Date', 'Priority', 'Status', ''].map(col => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 100px 80px 90px 70px 90px', gap: '8px', padding: '6px 0 10px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`, marginBottom: '4px' }}>
+           {['Task', 'Employee', 'Created', 'Due Date', 'Priority', 'Status', '', ''].map(col => (
               <div key={col} style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0' }}>{col}</div>
             ))}
           </div>
@@ -460,7 +521,7 @@ export default function AdminPage() {
             const empInitial = empName.charAt(0).toUpperCase()
             const isOverdue = t.due && new Date(t.due) < new Date() && t.status !== 'completed'
             return (
-              <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 100px 80px 90px 70px', gap: '8px', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}` }}>
+              <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 100px 80px 90px 70px 90px', gap: '8px', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}` }}>
 
                 {/* Title */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -468,13 +529,21 @@ export default function AdminPage() {
                   <span style={{ fontSize: '13px', fontWeight: 500, color: isDark ? '#f0eff5' : '#1a1814', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                 </div>
 
-                {/* Employee */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                    {empInitial}
-                  </div>
-                  <span style={{ fontSize: '12px', color: isDark ? '#c8c7d4' : '#3a3832', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{empName}</span>
-                </div>
+               {/* Employee */}
+<div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+  {emp ? (
+    <>
+      <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+        {empInitial}
+      </div>
+      <span style={{ fontSize: '12px', color: isDark ? '#c8c7d4' : '#3a3832', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{empName}</span>
+    </>
+  ) : (
+    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,95,109,0.10)', color: '#ff5f6d', fontWeight: 600 }}>
+      Unassigned
+    </span>
+  )}
+</div>
 
                 {/* Created */}
                 <span style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0' }}>{fmtDate(t.created)}</span>
@@ -522,9 +591,77 @@ export default function AdminPage() {
                   )}
                 </button>
 
-              </div>
-            )
-          })}
+            {/* Reassign */}
+<div style={{ position: 'relative' }}>
+  {reassignTaskId === t.id ? (
+    <div style={{
+      position: 'absolute', right: 0, top: '50%',
+      transform: 'translateY(-50%)',
+      display: 'flex', flexDirection: 'column', gap: '4px',
+      background: isDark ? '#1e1e28' : '#ffffff',
+      border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)'}`,
+      borderRadius: '10px', padding: '8px',
+      boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.12)',
+      zIndex: 50, minWidth: '160px',
+    }}>
+      <select
+        value={reassignEmpId}
+        onChange={e => setReassignEmpId(e.target.value)}
+        style={{ ...v.select, fontSize: '11px', padding: '5px 8px', width: '100%' }}
+        autoFocus
+      >
+        <option value="">Pick employee…</option>
+        {employees.filter(e => e.role === 'employee').map(e => (
+          <option key={e.id} value={e.id}>{e.full_name || e.email}</option>
+        ))}
+      </select>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button
+          onClick={() => handleReassign(t.id)}
+          disabled={!reassignEmpId || reassignLoading}
+          style={{
+            flex: 1, padding: '5px 8px', borderRadius: '7px', border: 'none',
+            background: '#4ecb83', color: '#fff',
+            fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+            opacity: !reassignEmpId || reassignLoading ? 0.5 : 1,
+            fontFamily: 'DM Sans, sans-serif',
+          }}
+        >
+          {reassignLoading ? '…' : '✓ Confirm'}
+        </button>
+        <button
+          onClick={() => { setReassignTaskId(null); setReassignEmpId('') }}
+          style={{
+            padding: '5px 8px', borderRadius: '7px', border: 'none',
+            background: 'rgba(255,95,109,0.15)', color: '#ff5f6d',
+            fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+            fontFamily: 'DM Sans, sans-serif',
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  ) : (
+    <button
+      onClick={() => { setReassignTaskId(t.id); setReassignEmpId(t.user_id || '') }}
+      style={{
+        background: 'rgba(78,203,131,0.10)', border: 'none',
+        borderRadius: '8px', padding: '4px 10px',
+        color: '#4ecb83', fontSize: '11px', fontWeight: 600,
+        cursor: 'pointer', display: 'flex', alignItems: 'center',
+        gap: '4px', fontFamily: 'DM Sans, sans-serif',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      👤 {t.user_id ? 'Reassign' : 'Assign'}
+    </button>
+  )}
+</div>
+
+</div>
+)
+})}
           {/* Deleted Tasks Section */}
           {deletedTasks.length > 0 && (
             <div style={{ marginTop: '28px' }}>
