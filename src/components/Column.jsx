@@ -2,18 +2,20 @@ import React, { useState, useRef } from 'react'
 import TaskCard from './TaskCard'
 
 const EMPTY_META = {
-  todo:      { icon: '📋', text: 'No tasks yet',       sub: 'Add a task below to get started' },
-  working:   { icon: '⚡', text: 'Nothing in progress', sub: 'Move a task here to start working' },
-  completed: { icon: '✅', text: 'Nothing completed',   sub: 'Completed tasks will appear here' },
-  onhold:    { icon: '⏸️', text: 'Nothing on hold',     sub: 'Paused tasks will appear here' },
+  todo:      { icon: '📋', text: 'No tasks yet',        sub: 'Add a task below to get started' },
+  working:   { icon: '⚡', text: 'Nothing in progress',  sub: 'Move a task here to start working' },
+  completed: { icon: '✅', text: 'Nothing completed',    sub: 'Completed tasks will appear here' },
+  onhold:    { icon: '⏸️', text: 'Nothing on hold',      sub: 'Paused tasks will appear here' },
 }
 
 export default function Column({
   status, meta, tasks,
   draggingId, isDragOver,
-  onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
+  onMouseDragStart,
+  onTouchDragStart, onTouchDragEnd,
   onTouchMove, onTouchDrop,
-  onAdd, onDelete, onEdit, onView, commentCounts = {}, onMarkCommentRead,
+  onAdd, onDelete, onEdit, onView,
+  commentCounts = {}, onMarkCommentRead,
 }) {
   const [inputVal, setInputVal] = useState('')
   const inputRef = useRef(null)
@@ -31,9 +33,6 @@ export default function Column({
         ${isDragOver
           ? 'border-accent shadow-[0_0_0_1px_rgba(232,160,74,0.3),0_8px_30px_rgba(0,0,0,0.5)] bg-surface2'
           : 'border-white/[0.07] hover:border-white/[0.14]'}`}
-     onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver() }}
-      onDragLeave={onDragLeave}
-      onDrop={e => { e.preventDefault(); onDrop() }}
     >
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-[18px]" data-status={status}>
@@ -50,7 +49,6 @@ export default function Column({
         className="flex flex-col gap-2.5 mb-3.5 min-h-[80px] max-h-[calc(100vh-400px)] overflow-y-auto pr-0.5"
       >
         {tasks.length === 0 && !isDragOver ? (
-          /* ── Empty state ── */
           <li
             data-status={status}
             style={{
@@ -60,26 +58,12 @@ export default function Column({
               minHeight: '120px', padding: '20px 16px',
               borderRadius: '12px',
               border: '1.5px dashed rgba(255,255,255,0.08)',
-              textAlign: 'center',
-              gap: '6px',
+              textAlign: 'center', gap: '6px',
             }}
           >
             <span style={{ fontSize: '26px', opacity: 0.35, lineHeight: 1 }}>{empty.icon}</span>
-            <span style={{
-              fontSize: '12px', fontWeight: 600,
-              color: 'var(--t-text2)',
-              fontFamily: 'DM Sans, sans-serif',
-            }}>
-              {empty.text}
-            </span>
-            <span style={{
-              fontSize: '11px',
-              color: 'var(--t-text3)',
-              fontFamily: 'DM Sans, sans-serif',
-              lineHeight: 1.5,
-            }}>
-              {empty.sub}
-            </span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--t-text2)', fontFamily: 'DM Sans, sans-serif' }}>{empty.text}</span>
+            <span style={{ fontSize: '11px', color: 'var(--t-text3)', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.5 }}>{empty.sub}</span>
           </li>
         ) : (
           tasks.map(task => (
@@ -87,8 +71,9 @@ export default function Column({
               key={task.id}
               task={task}
               isDragging={draggingId === task.id}
-              onDragStart={() => onDragStart(task.id)}
-              onDragEnd={onDragEnd}
+              onMouseDragStart={onMouseDragStart}
+              onTouchDragStart={onTouchDragStart}
+              onTouchDragEnd={onTouchDragEnd}
               onTouchMove={onTouchMove}
               onTouchDrop={onTouchDrop}
               onDelete={() => onDelete(task.id)}

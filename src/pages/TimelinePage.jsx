@@ -149,7 +149,6 @@ export default function TimelinePage({ tasks }) {
         }
       `}</style>
 
-      <div style={{ fontFamily:'Syne, sans-serif', fontWeight:800, fontSize:'22px', marginBottom:'6px' }}>Timeline</div>
       <div style={{ fontSize:'13px', color:'var(--t-text2, #8b8a9b)', marginBottom:'20px' }}>Track when tasks were created, deadlines, and how long they took.</div>
 
       {/* SUMMARY CHIPS */}

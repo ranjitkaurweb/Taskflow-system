@@ -123,10 +123,9 @@ export default function ReportsPage({ tasks }) {
         }
       `}</style>
 
-      <div style={{ fontFamily:'Syne, sans-serif', fontWeight:800, fontSize:'22px', marginBottom:'6px' }}>Reports</div>
-      <div style={{ fontSize:'13px', color:'var(--t-text2, #8b8a9b)', marginBottom:'20px' }}>
-        Analyse your tasks for <strong>{rangeLabel}</strong>
-      </div>
+     <div style={{ fontSize:'13px', color:'var(--t-text2, #8b8a9b)', marginBottom:'20px' }}>
+  Analyse your tasks for <strong>{rangeLabel}</strong>
+</div>
 
       {/* FILTER ROW */}
       <div className="rp-filter-scroll">

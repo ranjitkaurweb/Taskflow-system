@@ -38,25 +38,32 @@ export function useTasks() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
   const [userId,  setUserId]  = useState(null)
+  const [authReady, setAuthReady] = useState(false)
 
   // ── Get current user on mount ──
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setUserId(session.user.id)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_, session) => setUserId(session?.user?.id || null)
-    )
-    return () => subscription.unsubscribe()
-  }, [])
-
-  // ── Load tasks when userId is known ──
-  useEffect(() => {
-    if (!userId) {
-      setTasks([])
-      setLoading(false)
-      return
+ useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUserId(session?.user?.id || null)
+    setAuthReady(true)
+  })
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_, session) => {
+      setUserId(session?.user?.id || null)
+      setAuthReady(true)
     }
+  )
+  return () => subscription.unsubscribe()
+}, [])
+  // ── Load tasks when userId is known ──
+useEffect(() => {
+  // Wait for auth to be ready before doing anything
+  if (!authReady) return
+
+  if (!userId) {
+    setTasks([])
+    setLoading(false)
+    return
+  }
 
     let mounted = true
 
@@ -133,7 +140,7 @@ const { data, error: err } = await supabase
       console.error('addTask error:', err.message)
       setTasks(prev => prev.filter(t => t.id !== task.id))
     }
-  }, [userId])
+  }, [userId, authReady])
 
 // ── DELETE ──
 const deleteTask = useCallback(async (id) => {
