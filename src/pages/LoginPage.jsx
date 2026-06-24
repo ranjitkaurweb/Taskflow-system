@@ -34,6 +34,10 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+  
+  React.useEffect(() => {
+  document.title = 'Login — TaskFlow'
+}, [])
 
   const c = {
     page: {

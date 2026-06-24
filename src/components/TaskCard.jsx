@@ -58,16 +58,23 @@ export default function TaskCard({
 const initial = (task.employeeName || task.title || '?').charAt(0).toUpperCase()
 const avatarGrad = getAvatarColor(task.userId || task.id || '?')
 
-  const handleMouseDown = useCallback((e) => {
-    if (e.target.closest('[data-actions]')) return
-    isDraggingFromCard.current = true
-  }, [])
+ const handleMouseDown = useCallback((e) => {
+  if (e.target.closest('[data-actions]')) return
+  isDraggingFromCard.current = true
+}, [])
 
-  const handleDragStart = useCallback((e) => {
-    if (!isDraggingFromCard.current) { e.preventDefault(); return }
-    isDraggingFromCard.current = false
-    onDragStart?.()
-  }, [onDragStart])
+const handleDragStart = useCallback((e) => {
+  if (!isDraggingFromCard.current) { e.preventDefault(); return }
+  isDraggingFromCard.current = false
+  // Make drag image instant — no delay ghost
+  const ghost = document.createElement('div')
+  ghost.style.cssText = 'position:fixed;top:-1000px;left:-1000px;width:1px;height:1px;opacity:0;'
+  document.body.appendChild(ghost)
+  e.dataTransfer.setDragImage(ghost, 0, 0)
+  e.dataTransfer.effectAllowed = 'move'
+  setTimeout(() => document.body.removeChild(ghost), 0)
+  onDragStart?.()
+}, [onDragStart])
 
   const handleDragEnd = useCallback(() => {
     isDraggingFromCard.current = false
@@ -137,6 +144,7 @@ const avatarGrad = getAvatarColor(task.userId || task.id || '?')
     style={{
       listStyle: 'none',
       userSelect: 'none', WebkitUserSelect: 'none',
+        WebkitUserDrag: 'element',
       background: '#ffffff',
      border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.09)'}`,
 borderLeft: `3px solid ${pm.border}`,

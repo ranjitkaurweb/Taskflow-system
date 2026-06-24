@@ -66,10 +66,13 @@ export default function Board({
 
   const draggingIdRef = useRef(null)
 
-  const handleDragStart = useCallback((id) => {
+ const handleDragStart = useCallback((id) => {
+  // Use requestAnimationFrame for instant visual feedback
+  requestAnimationFrame(() => {
     setDraggingId(id)
-    draggingIdRef.current = id
-  }, [])
+  })
+  draggingIdRef.current = id
+}, [])
 
   const handleDragEnd = useCallback(() => {
     setDraggingId(null)

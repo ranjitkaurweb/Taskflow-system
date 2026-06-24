@@ -31,7 +31,7 @@ export default function Column({
         ${isDragOver
           ? 'border-accent shadow-[0_0_0_1px_rgba(232,160,74,0.3),0_8px_30px_rgba(0,0,0,0.5)] bg-surface2'
           : 'border-white/[0.07] hover:border-white/[0.14]'}`}
-      onDragOver={e => { e.preventDefault(); onDragOver() }}
+     onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver() }}
       onDragLeave={onDragLeave}
       onDrop={e => { e.preventDefault(); onDrop() }}
     >

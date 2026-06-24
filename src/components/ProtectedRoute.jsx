@@ -1,4 +1,5 @@
 import React from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from './ThemeContext'
 import LoginPage from '../pages/LoginPage'
@@ -10,6 +11,7 @@ import LoginPage from '../pages/LoginPage'
 
 export default function ProtectedRoute({ children }) {
   const { isLoggedIn, loading } = useAuth()
+  const location = useLocation()
   const { theme }  = useTheme()
   const isDark     = theme === 'dark'
 
@@ -41,9 +43,15 @@ export default function ProtectedRoute({ children }) {
   }
 
   // Not logged in → show login page
-  if (!isLoggedIn) {
-    return <LoginPage />
-  }
+if (!isLoggedIn) {
+  window.history.replaceState(null, '', '/login')
+  return <LoginPage />
+}
+
+// Redirect from /login to / after successful login
+if (location.pathname === '/login') {
+  window.history.replaceState(null, '', '/')
+}
 
   // Logged in → show the real app
   return children
