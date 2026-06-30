@@ -75,13 +75,13 @@ export default function LoginPage() {
       border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`,
     },
     logoText: {
-      fontFamily: 'Syne, sans-serif',
+      fontFamily: 'Montserrat, sans-serif',
       fontWeight: 800, fontSize: '20px',
       color: isDark ? '#f0eff5' : '#1a1814',
       letterSpacing: '-0.03em',
     },
     heading: {
-      fontFamily: 'Syne, sans-serif',
+      fontFamily: 'Montserrat, sans-serif',
       fontWeight: 800, fontSize: '22px',
       color: isDark ? '#f0eff5' : '#1a1814',
       letterSpacing: '-0.02em',

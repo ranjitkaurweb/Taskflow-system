@@ -10,6 +10,7 @@ import TaskViewModal     from './components/TaskViewModal'
 import AmbientBackground from './components/AmbientBackground'
 import DashboardPage     from './pages/DashboardPage'
 import BoardPage         from './pages/BoardPage'
+import ProjectsPage      from './pages/ProjectsPage'
 import TimelinePage      from './pages/TimelinePage'
 import ReportsPage       from './pages/ReportsPage'
 import AdminPage         from './pages/AdminPage'
@@ -30,6 +31,7 @@ const location   = useLocation()
 const pathToPage = {
   '/':          'Dashboard',
   '/board':     'Board',
+    '/projects':  'Projects',
   '/timeline':  'Timeline',
   '/reports':   'Reports',
   '/admin':     'Admin',
@@ -38,6 +40,7 @@ const pathToPage = {
 const pageToPath = {
   'Dashboard': '/',
   'Board':     '/board',
+  'Projects':  '/projects',
   'Timeline':  '/timeline',
   'Reports':   '/reports',
   'Admin':     '/admin',
@@ -50,6 +53,7 @@ React.useEffect(() => {
   const titles = {
     Dashboard: 'Dashboard — TaskFlow',
     Board:     'Board — TaskFlow',
+    Projects:  'Projects — TaskFlow',
     Timeline:  'Timeline — TaskFlow',
     Reports:   'Reports — TaskFlow',
     Admin:     'Admin — TaskFlow',
@@ -77,6 +81,7 @@ React.useEffect(() => {
   const subtitles = {
     Dashboard: 'Your workspace at a glance',
     Board:     'Drag and drop tasks',
+    Projects:  'Group projects and team chats',
     Timeline:  'Track task progress',
     Reports:   'Analyse productivity',
     Admin:     'Manage employees & tasks',
@@ -93,26 +98,13 @@ React.useEffect(() => {
   const ErrorScreen = () => (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60vh', gap:'12px', textAlign:'center', padding:'0 24px' }}>
       <div style={{ fontSize:'36px' }}>⚠️</div>
-      <div style={{ fontSize:'16px', fontWeight:600, color:'#ff5f6d', fontFamily:'Syne, sans-serif' }}>Could not connect to database</div>
+      <div style={{ fontSize:'16px', fontWeight:600, color:'#ff5f6d', fontFamily:'Montserrat, sans-serif' }}>Could not connect to database</div>
       <div style={{ fontSize:'13px', color: isDark ? '#5a5968' : '#aaa9a0', maxWidth:'320px', lineHeight:1.6, fontFamily:'DM Sans, sans-serif' }}>{error}</div>
       <button onClick={() => window.location.reload()} style={{ marginTop:'8px', padding:'9px 22px', borderRadius:'10px', background: isDark ? '#e8a04a' : '#c8533a', color: isDark ? '#1a1000' : '#fff', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:600, fontFamily:'DM Sans, sans-serif' }}>Retry</button>
     </div>
   )
 
-const renderPage = () => {
-  if (loading) return <Spinner />
-  if (error)   return <ErrorScreen />
-  return (
-    <Routes>
-      <Route path="/"         element={<DashboardPage tasks={tasks} profile={profile} onNavigate={setActivePage} />} />
-      <Route path="/board"    element={<BoardPage tasks={tasks} onAdd={addTask} onDelete={deleteTask} onEdit={editTask} onMove={handleMoveTask} onComplete={() => {}} onView={handleViewTask} />} />
-      <Route path="/timeline" element={<TimelinePage tasks={tasks} />} />
-      <Route path="/reports"  element={<ReportsPage  tasks={tasks} />} />
-      <Route path="/admin"    element={<AdminRoute><AdminPage /></AdminRoute>} />
-      <Route path="*"         element={<DashboardPage tasks={tasks} profile={profile} onNavigate={setActivePage} />} />
-    </Routes>
-  )
-}
+// Delete renderPage function completely
 
   return (
     <div
@@ -238,10 +230,20 @@ const renderPage = () => {
           </div>
         </div>
 
-        {/* Page content */}
-        <div className="app-page-content">
-          {renderPage()}
-        </div>
+     {/* Page content */}
+<div className="app-page-content">
+  {loading ? <Spinner /> : error ? <ErrorScreen /> : (
+    <Routes>
+      <Route path="/"         element={<DashboardPage tasks={tasks} profile={profile} onNavigate={setActivePage} />} />
+      <Route path="/board"    element={<BoardPage tasks={tasks} onAdd={addTask} onDelete={deleteTask} onEdit={editTask} onMove={handleMoveTask} onComplete={() => {}} onView={handleViewTask} />} />
+     <Route path="/projects" element={<ProjectsPage tasks={tasks} addTask={addTask} />} />
+      <Route path="/timeline" element={<TimelinePage tasks={tasks} />} />
+      <Route path="/reports"  element={<ReportsPage  tasks={tasks} />} />
+      <Route path="/admin"    element={<AdminRoute><AdminPage /></AdminRoute>} />
+      <Route path="*"         element={<DashboardPage tasks={tasks} profile={profile} onNavigate={setActivePage} />} />
+    </Routes>
+  )}
+</div>
       </main>
 
       <TaskModal open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleAddTask} />

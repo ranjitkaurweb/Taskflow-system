@@ -19,6 +19,7 @@ const fromRow = (row) => ({
   userId:       row.user_id || null,
   assignedTo:   row.assigned_to || null,
   deletedAt:    row.deleted_at  || null,
+  projectId:    row.project_id  || null,
   employeeName: row.profiles?.full_name || row.profiles?.email || '',
 })
 // Our task object → Supabase row
@@ -31,6 +32,7 @@ const toRow = (task, userId) => ({
   created:      task.created,
   completed_at: task.completedAt || null,
   user_id:      userId,
+  project_id:   task.projectId || null,
 })
 
 export function useTasks() {
@@ -66,10 +68,9 @@ useEffect(() => {
   }
 
     let mounted = true
-
-    async function fetchTasks() {
-      setLoading(true)
-      setError(null)
+async function fetchTasks() {
+  if (!tasks.length) setLoading(true) // Only show spinner on first load
+  setError(null)
 
       // Supabase RLS handles filtering automatically:
       // admin → gets all rows, employee → gets only their rows
@@ -121,26 +122,28 @@ const { data, error: err } = await supabase
   }, [userId])
 
   // ── ADD ──
-  const addTask = useCallback(async (title, status, priority = 'medium', due = '') => {
-    if (!title?.trim() || !userId) return
-    const task = {
-      id:          uid(),
-      title:       title.trim(),
-      status,
-      priority,
-      due:         due || '',
-      created:     Date.now(),
-      completedAt: status === 'completed' ? Date.now() : null,
-    }
-    setTasks(prev => [task, ...prev])
-    const { error: err } = await supabase
-      .from('tasks')
-      .insert(toRow(task, userId))
-    if (err) {
-      console.error('addTask error:', err.message)
-      setTasks(prev => prev.filter(t => t.id !== task.id))
-    }
-  }, [userId, authReady])
+ const addTask = useCallback(async (title, status, priority = 'medium', due = '', projectId = null, assignToUserId = null) => {
+  if (!title?.trim() || !userId) return
+  const targetUserId = assignToUserId || userId
+  const task = {
+    id:          uid(),
+    title:       title.trim(),
+    status,
+    priority,
+    due:         due || '',
+    created:     Date.now(),
+    completedAt: status === 'completed' ? Date.now() : null,
+    projectId,
+  }
+  setTasks(prev => [task, ...prev])
+  const { error: err } = await supabase
+    .from('tasks')
+    .insert(toRow(task, targetUserId))
+  if (err) {
+    console.error('addTask error:', err.message)
+    setTasks(prev => prev.filter(t => t.id !== task.id))
+  }
+}, [userId])
 
 // ── DELETE ──
 const deleteTask = useCallback(async (id) => {

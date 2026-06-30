@@ -98,7 +98,7 @@ const labelStyle = {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '17px', color: isDark ? '#f0eff5' : '#1a1814', letterSpacing: '-0.02em' }}>
+            <div style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '17px', color: isDark ? '#f0eff5' : '#1a1814', letterSpacing: '-0.02em' }}>
               Edit Task
             </div>
             <div style={{ fontSize: '12px', color: '#5a5968', marginTop: '2px' }}>

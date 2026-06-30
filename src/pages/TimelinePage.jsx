@@ -161,7 +161,7 @@ export default function TimelinePage({ tasks }) {
         ].map((c,i) => (
           <div key={i} className="tl-chip" style={{ background:'var(--t-surface, #16161d)', border:'1px solid var(--t-border, rgba(255,255,255,0.07))', borderRadius:'16px', padding:'16px 18px' }}>
             <div style={{ fontSize:'20px', marginBottom:'8px' }}>{c.icon}</div>
-            <div style={{ fontSize:'26px', fontWeight:800, fontFamily:'Syne, sans-serif', color: c.color || 'var(--t-text1, #f0eff5)', lineHeight:1 }}>{c.val}</div>
+            <div style={{ fontSize:'26px', fontWeight:800, fontFamily:'Montserrat, sans-serif', color: c.color || 'var(--t-text1, #f0eff5)', lineHeight:1 }}>{c.val}</div>
             <div style={{ fontSize:'12px', color:'var(--t-text2, #8b8a9b)', marginTop:'4px' }}>{c.lbl}</div>
           </div>
         ))}

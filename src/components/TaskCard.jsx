@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useTheme } from './ThemeContext'
 import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi'
 import TaskEditModal from './TaskEditModal'
@@ -57,6 +57,17 @@ export default function TaskCard({
   const due      = task.due
   const initial  = (task.employeeName || task.title || '?').charAt(0).toUpperCase()
   const avatarGrad = getAvatarColor(task.userId || task.id || '?')
+  const [projectName, setProjectName] = useState(null)
+
+useEffect(() => {
+  if (!task.projectId) { setProjectName(null); return }
+  let mounted = true
+  import('../lib/supabase').then(({ supabase }) => {
+    supabase.from('projects').select('title').eq('id', task.projectId).single()
+      .then(({ data }) => { if (mounted && data) setProjectName(data.title) })
+  })
+  return () => { mounted = false }
+}, [task.projectId])
 
   // ── Mouse drag — instant, no HTML5 drag API ──
   const handleMouseDown = useCallback((e) => {
@@ -157,6 +168,22 @@ export default function TaskCard({
       }}>
         {task.title}
       </div>
+      {/* Project badge */}
+{projectName && (
+  <div style={{
+    display: 'inline-flex', alignItems: 'center', gap: '4px',
+    fontSize: '10px', fontWeight: 600,
+    color: '#9b7fe8', background: 'rgba(155,127,232,0.12)',
+    padding: '2px 9px', borderRadius: '20px',
+    marginBottom: '10px',
+    fontFamily: 'DM Sans, sans-serif',
+  }}>
+    🗂️ {projectName}
+  </div>
+)}
+
+{/* Priority + Due */}
+<div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}></div>
 
       {/* Priority + Due */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>

@@ -175,7 +175,7 @@ export default function NotificationBell({ isDark }) {
             padding: '14px 16px 12px',
             borderBottom: `1px solid ${border}`,
           }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: textPrimary, fontFamily: 'Syne, sans-serif' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: textPrimary, fontFamily: 'Montserrat, sans-serif' }}>
               Notifications{unreadCount > 0 && <span style={{ color: '#ff5f6d', marginLeft: '5px' }}>({unreadCount})</span>}
             </div>
             {unreadCount > 0 && (

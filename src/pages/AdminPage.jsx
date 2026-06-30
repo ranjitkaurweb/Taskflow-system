@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 import { useTheme } from '../components/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import TaskCommentsModal from '../components/TaskCommentsModal'
+import EmployeeTasksModal from '../components/EmployeeTasksModal'
+import ProjectChatModal from '../components/ProjectChatModal'
+import ProjectDetailModal from '../components/ProjectDetailModal'
+import { useProjects } from '../hooks/useProjects'
 import { createPortal } from 'react-dom'
 
 const supabaseAdmin = createClient(
@@ -18,7 +22,11 @@ const STATUS_COLOR = {
 const PRIORITY_COLOR = {
   high: '#ff5f6d', medium: '#e8a04a', low: '#4ecb83',
 }
-
+const PROJECT_STATUS_META = {
+  active:    { label: 'Active',    color: '#e8a04a', bg: 'rgba(232,160,74,0.12)'  },
+  completed: { label: 'Completed', color: '#4ecb83', bg: 'rgba(78,203,131,0.12)'  },
+  onhold:    { label: 'On Hold',   color: '#9b7fe8', bg: 'rgba(155,127,232,0.12)' },
+}
 function fmtDate(ts) {
   if (!ts) return '—'
   return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -32,7 +40,7 @@ function StatCard({ icon, label, value, color, isDark }) {
       borderRadius: '16px', padding: '18px 20px',
     }}>
       <div style={{ fontSize: '22px', marginBottom: '10px' }}>{icon}</div>
-      <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: color || (isDark ? '#f0eff5' : '#1a1814'), lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'Montserrat, sans-serif', color: color || (isDark ? '#f0eff5' : '#1a1814'), lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: '12px', color: isDark ? '#5a5968' : '#aaa9a0', marginTop: '4px' }}>{label}</div>
     </div>
   )
@@ -59,6 +67,7 @@ export default function AdminPage() {
   const [taskFilter, setTaskFilter] = useState('all')
   const [empFilter, setEmpFilter] = useState('all')
   const [commentTask, setCommentTask] = useState(null)
+  const [selectedEmp,   setSelectedEmp]   = useState(null)
   const [reassignTaskId, setReassignTaskId] = useState(null)
   const [reassignEmpId, setReassignEmpId] = useState('')
   const [reassignLoading, setReassignLoading] = useState(false)
@@ -72,8 +81,20 @@ export default function AdminPage() {
   const [assignStatus, setAssignStatus] = useState('todo')
   const [assignMsg, setAssignMsg] = useState({ type: '', text: '' })
   const [assignLoading, setAssignLoading] = useState(false)
+const { projects, createProject, deleteProject, updateProject, removeMember } = useProjects()
+const [chatProject,  setChatProject]  = useState(null)
+const [detailProject,    setDetailProject]    = useState(null)
+const [projTitle,    setProjTitle]    = useState('')
+const [projDesc,     setProjDesc]     = useState('')
+const [projPriority, setProjPriority] = useState('medium')
+const [projDue,      setProjDue]      = useState('')
+const [projMembers,  setProjMembers]  = useState([])
+const [projMsg,      setProjMsg]      = useState({ type: '', text: '' })
+const [projLoading,  setProjLoading]  = useState(false)
+const [projDeleteId, setProjDeleteId] = useState(null)
 
   const getLastRead = (taskId) => parseInt(localStorage.getItem(`lastRead_${taskId}`) || '0')
+
   const markCommentRead = (taskId) => {
     localStorage.setItem(`lastRead_${taskId}`, Date.now().toString())
     setUnreadCommentCounts(prev => ({ ...prev, [taskId]: 0 }))
@@ -181,6 +202,38 @@ export default function AdminPage() {
     await supabase.from('profiles').update({ role: newRole }).eq('id', empId)
     setEmployees(prev => prev.map(e => e.id === empId ? { ...e, role: newRole } : e))
   }
+  const handleCreateProject = async (e) => {
+  e.preventDefault()
+  if (!projTitle.trim()) { setProjMsg({ type: 'error', text: 'Please enter a project title.' }); return }
+  if (projMembers.length === 0) { setProjMsg({ type: 'error', text: 'Please select at least one team member.' }); return }
+  setProjLoading(true); setProjMsg({ type: '', text: '' })
+  const { project, error } = await createProject({ title: projTitle.trim(), description: projDesc.trim(), priority: projPriority, due: projDue || null, memberIds: projMembers })
+  if (error) { setProjMsg({ type: 'error', text: `Error: ${error}` }); setProjLoading(false); return }
+  setProjMsg({ type: 'success', text: `✅ Project "${projTitle}" created with ${projMembers.length} member${projMembers.length > 1 ? 's' : ''}!` })
+  setProjTitle(''); setProjDesc(''); setProjPriority('medium'); setProjDue(''); setProjMembers([])
+  setProjLoading(false)
+}
+
+const toggleMember = (id) => {
+  setProjMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
+}
+const handleAddProjectTask = async ({ title, priority, due, assignToUserId, projectId }) => {
+  const newTask = {
+    id: Math.random().toString(36).slice(2, 10),
+    title: title.trim(),
+    status: 'todo',
+    priority,
+    due: due || null,
+    created: Date.now(),
+    user_id: assignToUserId,
+    assigned_to: assignToUserId,
+    project_id: projectId,
+  }
+  const { error } = await supabase.from('tasks').insert(newTask)
+  if (error) { console.error('add project task error:', error.message); return }
+  const { data } = await supabase.from('tasks').select('*').is('deleted_at', null).order('created', { ascending: false })
+  if (data) setAllTasks(data)
+}
 
   const stats = useMemo(() => ({
     totalEmployees: employees.filter(e => e.role === 'employee').length,
@@ -234,7 +287,7 @@ export default function AdminPage() {
           .emp-row { flex-wrap: wrap !important; }
           .emp-row-right { flex-wrap: wrap; gap: 6px !important; }
           .task-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .task-table-inner { min-width: 700px; }
+         .task-table-inner { min-width: 780px; }
           .deleted-table-inner { min-width: 500px; }
           .assign-form { max-width: 100% !important; }
           .overview-progress { width: 70px !important; }
@@ -248,15 +301,16 @@ export default function AdminPage() {
       {/* Tab nav */}
       <div className="admin-tab-scroll" style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', width: 'max-content' }}>
-          {['overview', 'employees', 'tasks', 'assign', 'invite'].map(t => (
-            <button key={t} style={v.tabBtn(tab === t)} onClick={() => setTab(t)}>
-              {t === 'overview' ? '📊 Overview'
-                : t === 'employees' ? '👥 Employees'
-                : t === 'tasks' ? '📋 All Tasks'
-                : t === 'assign' ? '📌 Assign Task'
-                : '➕ Add Employee'}
-            </button>
-          ))}
+        {['overview', 'employees', 'tasks', 'projects', 'assign', 'invite'].map(t => (
+  <button key={t} style={v.tabBtn(tab === t)} onClick={() => setTab(t)}>
+    {t === 'overview'   ? '📊 Overview'
+      : t === 'employees' ? '👥 Employees'
+      : t === 'tasks'     ? '📋 All Tasks'
+      : t === 'projects'  ? '🗂️ Projects'
+      : t === 'assign'    ? '📌 Assign Task'
+      : '➕ Add Employee'}
+  </button>
+))}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -288,10 +342,14 @@ export default function AdminPage() {
               const done = empTasks.filter(t => t.status === 'completed').length
               const pct = empTasks.length ? Math.round((done / empTasks.length) * 100) : 0
               return (
-                <div key={emp.id} style={v.row}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                    {(emp.full_name || emp.email || '?').charAt(0).toUpperCase()}
-                  </div>
+               <div key={emp.id} style={{ ...v.row, cursor: 'pointer', borderRadius: '10px', padding: '11px 8px', transition: 'background 0.12s' }}
+  onClick={() => setSelectedEmp(emp)}
+  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}
+  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+>
+  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+    {(emp.full_name || emp.email || '?').charAt(0).toUpperCase()}
+  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, color: isDark ? '#f0eff5' : '#1a1814', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.full_name || emp.email}</div>
                     <div style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0' }}>{empTasks.length} tasks • {done} done</div>
@@ -379,11 +437,11 @@ export default function AdminPage() {
           <div className="task-table-wrap">
             <div className="task-table-inner">
               {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 75px 85px 65px 90px', gap: '8px', padding: '6px 0 10px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`, marginBottom: '4px' }}>
-                {['Task', 'Employee', 'Created', 'Due', 'Priority', 'Status', '', ''].map((col, i) => (
-                  <div key={i} style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0' }}>{col}</div>
-                ))}
-              </div>
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 90px 80px 70px 85px 65px 90px', gap: '8px', padding: '6px 0 10px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`, marginBottom: '4px' }}>
+  {['Task', 'Employee', 'Project', 'Created', 'Due', 'Priority', 'Status', '', ''].map((col, i) => (
+    <div key={i} style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: isDark ? '#5a5968' : '#aaa9a0' }}>{col}</div>
+  ))}
+</div>
 
               {filteredTasks.length === 0 && (
                 <div style={{ color: isDark ? '#5a5968' : '#aaa9a0', fontSize: '13px', padding: '20px 0', textAlign: 'center' }}>No tasks found.</div>
@@ -395,23 +453,33 @@ export default function AdminPage() {
                 const empInitial = empName.charAt(0).toUpperCase()
                 const isOverdue = t.due && new Date(t.due) < new Date() && t.status !== 'completed'
                 return (
-                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 75px 85px 65px 90px', gap: '8px', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}` }}>
-                    {/* Title */}
+<div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 90px 80px 70px 85px 65px 90px', gap: '8px', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}` }}>                    {/* Title */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                       <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: STATUS_COLOR[t.status], flexShrink: 0 }} />
                       <span style={{ fontSize: '13px', fontWeight: 500, color: isDark ? '#f0eff5' : '#1a1814', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                     </div>
-                    {/* Employee */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                      {emp ? (
-                        <>
-                          <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>{empInitial}</div>
-                          <span style={{ fontSize: '12px', color: isDark ? '#c8c7d4' : '#3a3832', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{empName}</span>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,95,109,0.10)', color: '#ff5f6d', fontWeight: 600 }}>Unassigned</span>
-                      )}
-                    </div>
+                 {/* Employee */}
+<div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+  {emp ? (
+    <>
+      <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg,#6b7fff,#e8a04a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>{empInitial}</div>
+      <span style={{ fontSize: '12px', color: isDark ? '#c8c7d4' : '#3a3832', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{empName}</span>
+    </>
+  ) : (
+    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,95,109,0.10)', color: '#ff5f6d', fontWeight: 600 }}>Unassigned</span>
+  )}
+</div>
+
+{/* Project */}
+<div style={{ minWidth: 0 }}>
+  {t.project_id ? (
+    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(155,127,232,0.12)', color: '#9b7fe8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '100%' }}>
+      🗂️ {projects.find(p => p.id === t.project_id)?.title || 'Project'}
+    </span>
+  ) : (
+    <span style={{ fontSize: '11px', color: isDark ? '#3a3948' : '#c8c7c0' }}>—</span>
+  )}
+</div>
                     {/* Created */}
                     <span style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0' }}>{fmtDate(t.created)}</span>
                     {/* Due */}
@@ -498,6 +566,121 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {/* PROJECTS */}
+{tab === 'projects' && (
+  <div>
+    {projects.length > 0 && (
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ ...v.cardTitle, marginBottom: '12px' }}>All Projects ({projects.length})</div>
+        <div className="proj-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: '14px', marginBottom: '20px' }}>
+          {projects.map(p => {
+            const sm = PROJECT_STATUS_META[p.status] || PROJECT_STATUS_META.active
+            const members = p.project_members || []
+            return (
+              <div key={p.id} style={{ background: isDark ? '#16161d' : '#ffffff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderTop: `3px solid ${sm.color}`, borderRadius: '16px', padding: '18px', transition: 'all 0.2s ease', position: 'relative' }}>
+                <button onClick={() => setProjDeleteId(p.id)}
+                  style={{ position: 'absolute', top: '12px', right: '12px', width: '26px', height: '26px', borderRadius: '7px', border: 'none', background: 'transparent', color: isDark ? '#5a5968' : '#aaa9a0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.12s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,95,109,0.15)'; e.currentTarget.style.color = '#ff5f6d' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isDark ? '#5a5968' : '#aaa9a0' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                </button>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: isDark ? '#f0eff5' : '#1a1814', marginBottom: '6px', paddingRight: '30px' }}>{p.title}</div>
+                {p.description && <div style={{ fontSize: '12px', color: isDark ? '#5a5968' : '#aaa9a0', marginBottom: '10px', lineHeight: 1.5 }}>{p.description}</div>}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', padding: '2px 9px', borderRadius: '20px', background: sm.bg, color: sm.color, fontWeight: 600 }}>{sm.label}</span>
+                  {p.due && <span style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0' }}>📅 {fmtDate(new Date(p.due).getTime())}</span>}
+                </div>
+                <select value={p.status} onChange={e => updateProject(p.id, { status: e.target.value })}
+                  style={{ ...v.select, fontSize: '11px', padding: '4px 8px', width: '100%', marginBottom: '12px' }}>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="onhold">On Hold</option>
+                </select>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ display: 'flex' }}>
+                      {members.slice(0, 5).map((m, i) => {
+                        const name = m.profiles?.full_name || m.profiles?.email || '?'
+                        return (
+                          <div key={m.user_id} title={name} style={{ width: '24px', height: '24px', borderRadius: '50%', background: `hsl(${(name.charCodeAt(0) * 37) % 360}, 60%, 55%)`, border: `2px solid ${isDark ? '#16161d' : '#fff'}`, marginLeft: i === 0 ? '0' : '-6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff', position: 'relative', zIndex: members.length - i }}>
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <span style={{ fontSize: '11px', color: isDark ? '#5a5968' : '#aaa9a0', marginLeft: '4px' }}>{members.length} member{members.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <button onClick={() => { setDetailProject(p); localStorage.setItem(`lastReadProject_${p.id}`, Date.now().toString()) }}
+  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '9px', border: 'none', background: 'rgba(107,127,255,0.12)', color: '#6b7fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  View Project
+</button>
+                </div>
+                {projDeleteId === p.id && (
+                  <div style={{ marginTop: '12px', padding: '10px', borderRadius: '10px', background: 'rgba(255,95,109,0.08)', border: '1px solid rgba(255,95,109,0.2)' }}>
+                    <div style={{ fontSize: '12px', color: '#ff5f6d', marginBottom: '8px', fontFamily: 'DM Sans, sans-serif' }}>Delete this project?</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={async () => { await deleteProject(p.id); setProjDeleteId(null) }} style={{ flex: 1, padding: '5px', borderRadius: '7px', border: 'none', background: '#ff5f6d', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                      <button onClick={() => setProjDeleteId(null)} style={{ flex: 1, padding: '5px', borderRadius: '7px', border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)'}`, background: 'transparent', color: isDark ? '#8b8a9b' : '#6b6760', fontSize: '11px', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )}
+
+    {/* Create form */}
+    <div className="assign-form" style={{ maxWidth: '520px' }}>
+      <div className="admin-card" style={v.card}>
+        <div style={v.cardTitle}>Create New Project</div>
+        {projMsg.text && (
+          <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '13px', lineHeight: 1.5, background: projMsg.type === 'success' ? 'rgba(78,203,131,0.12)' : 'rgba(255,95,109,0.12)', border: `1px solid ${projMsg.type === 'success' ? 'rgba(78,203,131,0.3)' : 'rgba(255,95,109,0.3)'}`, color: projMsg.type === 'success' ? '#4ecb83' : '#ff5f6d' }}>
+            {projMsg.text}
+          </div>
+        )}
+        <form onSubmit={handleCreateProject} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div><label style={v.label}>Project Title</label><input type="text" value={projTitle} onChange={e => setProjTitle(e.target.value)} placeholder="e.g. Website Redesign" style={v.input} /></div>
+          <div><label style={v.label}>Description <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></label><textarea value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="What is this project about?" rows={3} style={{ ...v.input, resize: 'vertical', minHeight: '70px' }} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div><label style={v.label}>Priority</label>
+              <select value={projPriority} onChange={e => setProjPriority(e.target.value)} style={{ ...v.select, width: '100%' }}>
+                <option value="high">🔴 High</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+            </div>
+            <div><label style={v.label}>Due Date</label><input type="date" value={projDue} onChange={e => setProjDue(e.target.value)} style={v.input} /></div>
+          </div>
+          <div>
+            <label style={v.label}>Select Team Members <span style={{ color: '#ff5f6d' }}>*</span></label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+              {employees.filter(e => e.role === 'employee').map(emp => {
+                const selected = projMembers.includes(emp.id)
+                return (
+                  <div key={emp.id} onClick={() => toggleMember(emp.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: `1.5px solid ${selected ? '#e8a04a' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)'}`, background: selected ? 'rgba(232,160,74,0.12)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif' }}>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: `hsl(${((emp.full_name || emp.email || '?').charCodeAt(0) * 37) % 360}, 60%, 55%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#fff' }}>
+                      {(emp.full_name || emp.email || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: selected ? 600 : 400, color: selected ? '#e8a04a' : isDark ? '#8b8a9b' : '#6b6760' }}>{emp.full_name || emp.email}</span>
+                    {selected && <span style={{ fontSize: '10px', color: '#e8a04a' }}>✓</span>}
+                  </div>
+                )
+              })}
+            </div>
+            {projMembers.length > 0 && <div style={{ fontSize: '11px', color: '#e8a04a', marginTop: '8px' }}>{projMembers.length} member{projMembers.length > 1 ? 's' : ''} selected</div>}
+          </div>
+          <button type="submit" style={{ ...v.submitBtn, opacity: projLoading ? 0.7 : 1 }} disabled={projLoading}>
+            {projLoading ? 'Creating…' : '🗂️ Create Project'}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ASSIGN TASK */}
       {tab === 'assign' && (
@@ -546,10 +729,41 @@ export default function AdminPage() {
         </div>
       )}
 
-      {createPortal(
-        <TaskCommentsModal task={commentTask} open={!!commentTask} onClose={() => setCommentTask(null)} isDark={isDark} employees={employees} />,
-        document.body
-      )}
+    {createPortal(
+  <TaskCommentsModal task={commentTask} open={!!commentTask} onClose={() => setCommentTask(null)} isDark={isDark} employees={employees} />,
+  document.body
+)}
+{createPortal(
+  <EmployeeTasksModal
+    employee={selectedEmp}
+    tasks={allTasks}
+    open={!!selectedEmp}
+    onClose={() => setSelectedEmp(null)}
+    isDark={isDark}
+  />,
+  document.body
+)}
+{createPortal(<ProjectChatModal project={chatProject} open={!!chatProject} onClose={() => setChatProject(null)} isDark={isDark} />, document.body)}
+{createPortal(
+  <ProjectDetailModal
+    project={detailProject}
+    allTasks={allTasks}
+    isAdmin={true}
+    currentUserId={profile?.id}
+    open={!!detailProject}
+    onClose={() => setDetailProject(null)}
+    onOpenChat={(p) => { setDetailProject(null); setChatProject(p) }}
+    onAddTask={handleAddProjectTask}
+    onRemoveMember={removeMember}
+    onAddMember={async (projectId, memberId) => {
+      const { error } = await supabase.from('project_members').insert({ project_id: projectId, user_id: memberId })
+      if (error) console.error('add member error:', error.message)
+    }}
+    employees={employees}
+    isDark={isDark}
+  />,
+  document.body
+)}
     </div>
   )
 }

@@ -37,7 +37,7 @@ function StatCard({ icon, label, value, sub, color }) {
   return (
     <div style={{ background:'var(--t-surface, #16161d)', border:'1px solid var(--t-border, rgba(255,255,255,0.07))', borderRadius:'16px', padding:'16px 18px' }}>
       <div style={{ fontSize:'20px', marginBottom:'8px' }}>{icon}</div>
-      <div style={{ fontSize:'26px', fontWeight:800, fontFamily:'Syne, sans-serif', color: color || 'var(--t-text1, #f0eff5)', lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:'26px', fontWeight:800, fontFamily:'Montserrat, sans-serif', color: color || 'var(--t-text1, #f0eff5)', lineHeight:1 }}>{value}</div>
       <div style={{ fontSize:'12px', color:'var(--t-text2, #8b8a9b)', marginTop:'4px' }}>{label}</div>
       {sub && <div style={{ fontSize:'11px', color:'var(--t-text3, #5a5968)', marginTop:'3px' }}>{sub}</div>}
     </div>
@@ -46,28 +46,33 @@ function StatCard({ icon, label, value, sub, color }) {
 
 export default function ReportsPage({ tasks }) {
   const today = startOfDay(Date.now())
-  const [filter,    setFilter]    = useState('week')
+ const [filter, setFilter] = useState('all')
   const [fromDate,  setFromDate]  = useState('')
   const [toDate,    setToDate]    = useState('')
   const [chartMode, setChartMode] = useState('status')
 
-  const { rangeStart, rangeEnd, rangeLabel } = useMemo(() => {
-    const end = today + DAY - 1
-    if (filter === 'today')  return { rangeStart: today,           rangeEnd: end, rangeLabel: 'Today' }
-    if (filter === 'week')   return { rangeStart: today - 6*DAY,   rangeEnd: end, rangeLabel: 'Last 7 days' }
-    if (filter === 'month')  return { rangeStart: today - 29*DAY,  rangeEnd: end, rangeLabel: 'Last 30 days' }
-    if (filter === 'year')   return { rangeStart: today - 364*DAY, rangeEnd: end, rangeLabel: 'This year' }
-    if (filter === 'custom' && fromDate && toDate) {
-      const s = new Date(fromDate + 'T00:00:00').getTime()
-      const e = new Date(toDate   + 'T23:59:59').getTime()
-      return { rangeStart: s, rangeEnd: e, rangeLabel: `${fmtDate(s)} – ${fmtDate(e)}` }
-    }
-    return { rangeStart: today - 6*DAY, rangeEnd: end, rangeLabel: 'Last 7 days' }
-  }, [filter, fromDate, toDate, today])
+ const { rangeStart, rangeEnd, rangeLabel } = useMemo(() => {
+  const end = today + DAY - 1
+  if (filter === 'all')    return { rangeStart: 0, rangeEnd: end, rangeLabel: 'All time' }
+  if (filter === 'today')  return { rangeStart: today,           rangeEnd: end, rangeLabel: 'Today' }
+  if (filter === 'week')   return { rangeStart: today - 6*DAY,   rangeEnd: end, rangeLabel: 'Last 7 days' }
+  if (filter === 'month')  return { rangeStart: today - 29*DAY,  rangeEnd: end, rangeLabel: 'Last 30 days' }
+  if (filter === 'year')   return { rangeStart: today - 364*DAY, rangeEnd: end, rangeLabel: 'This year' }
+  if (filter === 'custom' && fromDate && toDate) {
+    const s = new Date(fromDate + 'T00:00:00').getTime()
+    const e = new Date(toDate   + 'T23:59:59').getTime()
+    return { rangeStart: s, rangeEnd: e, rangeLabel: `${fmtDate(s)} – ${fmtDate(e)}` }
+  }
+  return { rangeStart: 0, rangeEnd: end, rangeLabel: 'All time' }
+}, [filter, fromDate, toDate, today])
 
-  const tasksInRange = useMemo(() =>
-    tasks.filter(t => t.created >= rangeStart && t.created <= rangeEnd),
-    [tasks, rangeStart, rangeEnd])
+const tasksInRange = useMemo(() => {
+  if (rangeStart === 0) return tasks // All time — show everything
+  return tasks.filter(t =>
+    (t.created >= rangeStart && t.created <= rangeEnd) ||
+    (t.completedAt && t.completedAt >= rangeStart && t.completedAt <= rangeEnd)
+  )
+}, [tasks, rangeStart, rangeEnd])
 
   const stats = useMemo(() => {
     const completed = tasksInRange.filter(t => t.status === 'completed')
@@ -129,11 +134,11 @@ export default function ReportsPage({ tasks }) {
 
       {/* FILTER ROW */}
       <div className="rp-filter-scroll">
-        {['today','week','month','year','custom'].map(f => (
-          <button key={f} style={filterBtn(filter === f)} onClick={() => setFilter(f)}>
-            {f === 'today' ? 'Today' : f === 'week' ? 'Last 7 days' : f === 'month' ? 'Last 30 days' : f === 'year' ? 'This year' : 'Custom'}
-          </button>
-        ))}
+       {['all','today','week','month','year','custom'].map(f => (
+  <button key={f} style={filterBtn(filter === f)} onClick={() => setFilter(f)}>
+    {f === 'all' ? 'All time' : f === 'today' ? 'Today' : f === 'week' ? 'Last 7 days' : f === 'month' ? 'Last 30 days' : f === 'year' ? 'This year' : 'Custom'}
+  </button>
+))}
       </div>
 
       {filter === 'custom' && (

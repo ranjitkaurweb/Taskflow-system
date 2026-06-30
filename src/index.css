@@ -11,7 +11,7 @@
   html { scroll-behavior: smooth; }
 
   body {
-    font-family: 'DM Sans', sans-serif;
+      font-family: 'Montserrat', sans-serif;
     /* NO hardcoded background here — theme-toggle.css handles it via CSS variables */
     min-height: 100vh;
     overflow-x: hidden;

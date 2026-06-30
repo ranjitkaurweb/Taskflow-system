@@ -26,7 +26,7 @@ export default function AdminRoute({ children }) {
       }}>
         <div style={{ fontSize: '42px' }}>🔒</div>
         <div style={{
-          fontFamily: 'Syne, sans-serif',
+          fontFamily: 'Montserrat, sans-serif',
           fontWeight: 800, fontSize: '20px',
           color: isDark ? '#f0eff5' : '#1a1814',
         }}>

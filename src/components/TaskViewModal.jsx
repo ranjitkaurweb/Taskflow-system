@@ -217,7 +217,7 @@ export default function TaskViewModal({ task, onClose }) {
         <div style={{ padding: '22px 24px 18px', borderBottom: `1px solid ${headerBorder}` }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
             <h2 style={{
-              fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '17px',
+              fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '17px',
               color: titleColor, lineHeight: 1.35, flex: 1, margin: 0,
             }}>
               {task.title}

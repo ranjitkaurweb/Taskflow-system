@@ -246,7 +246,7 @@ if (!profile.role && task.user_id && task.user_id !== profile.id) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span style={{ fontSize: '16px' }}>💬</span>
-              <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '17px', color: isDark ? '#f0eff5' : '#1a1814', letterSpacing: '-0.02em' }}>
+              <span style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: '17px', color: isDark ? '#f0eff5' : '#1a1814', letterSpacing: '-0.02em' }}>
                 Comments
               </span>
               <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', color: textMuted, fontFamily: 'DM Sans, sans-serif' }}>

@@ -34,7 +34,7 @@ function DonutRing({ pct, color, size = 56, stroke = 6 }) {
         style={{ transition: 'stroke-dashoffset 0.8s ease', filter:`drop-shadow(0 0 4px ${color}88)` }}
       />
       <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="middle"
-        fill={color} fontSize="11" fontWeight="700" fontFamily="Syne, sans-serif">{pct}%</text>
+        fill={color} fontSize="11" fontWeight="700" fontFamily="Montserrat, sans-serif">{pct}%</text>
     </svg>
   )
 }
@@ -153,7 +153,7 @@ export default function DashboardPage({ tasks, profile, onNavigate }) {
 
       {/* GREETING */}
       <div style={{ marginBottom: '24px' }}>
-        <div className="dash-greeting" style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '4px' }}>
+        <div className="dash-greeting" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '4px' }}>
           Good {greeting}, {firstName} 👋
         </div>
         <div style={{ fontSize: '13px', color: v('text2'), marginBottom: '8px' }}>
@@ -172,7 +172,7 @@ export default function DashboardPage({ tasks, profile, onNavigate }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <DonutRing pct={stats.completionPct} color="#6b7fff" />
             <div>
-              <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: '#fff', lineHeight: 1 }}>{stats.total}</div>
+              <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'Montserrat, sans-serif', color: '#fff', lineHeight: 1 }}>{stats.total}</div>
               <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>total tasks</div>
             </div>
           </div>
@@ -181,21 +181,21 @@ export default function DashboardPage({ tasks, profile, onNavigate }) {
         <div className="dash-card" style={{ ...card(), background: 'linear-gradient(135deg,#0d2818,#0a2010)', border: '1px solid rgba(78,203,131,0.25)', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', right: '-20px', top: '-20px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(78,203,131,0.07)' }} />
           <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4ecb83', marginBottom: '12px' }}>Done This Week</div>
-          <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: '#fff', lineHeight: 1, marginBottom: '8px' }}>{stats.doneThisWeek}</div>
+          <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: 'Montserrat, sans-serif', color: '#fff', lineHeight: 1, marginBottom: '8px' }}>{stats.doneThisWeek}</div>
           <Sparkline data={stats.sparkline} color="#4ecb83" />
         </div>
 
         <div className="dash-card" style={{ ...card(), background: stats.overdue > 0 ? 'linear-gradient(135deg,#2e0d0d,#200a0a)' : card().background, border: `1px solid ${stats.overdue > 0 ? 'rgba(255,95,109,0.25)' : v('border')}`, position: 'relative', overflow: 'hidden' }}>
           {stats.overdue > 0 && <div style={{ position: 'absolute', right: '-20px', top: '-20px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(255,95,109,0.07)' }} />}
           <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: stats.overdue > 0 ? '#ff5f6d' : v('text3'), marginBottom: '12px' }}>Overdue</div>
-          <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: stats.overdue > 0 ? '#ff5f6d' : v('text1'), lineHeight: 1, marginBottom: '6px' }}>{stats.overdue}</div>
+          <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: 'Montserrat, sans-serif', color: stats.overdue > 0 ? '#ff5f6d' : v('text1'), lineHeight: 1, marginBottom: '6px' }}>{stats.overdue}</div>
           <div style={{ fontSize: '12px', color: v('text3') }}>{stats.overdue === 0 ? 'All on track ✓' : 'need attention'}</div>
         </div>
 
         <div className="dash-card" style={{ ...card(), background: 'linear-gradient(135deg,#2a1a10,#1e1208)', border: '1px solid rgba(232,160,74,0.25)', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', right: '-20px', top: '-20px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(232,160,74,0.07)' }} />
           <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#e8a04a', marginBottom: '12px' }}>High Priority</div>
-          <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: '#fff', lineHeight: 1, marginBottom: '6px' }}>{stats.highPri}</div>
+          <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: 'Montserrat, sans-serif', color: '#fff', lineHeight: 1, marginBottom: '6px' }}>{stats.highPri}</div>
           <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>pending tasks</div>
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function DashboardPage({ tasks, profile, onNavigate }) {
                 onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
                   <span style={{ fontSize: '11px', color: meta.color, fontWeight: 600 }}>{meta.label}</span>
-                  <span style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: v('text1') }}>{count}</span>
+                  <span style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'Montserrat, sans-serif', color: v('text1') }}>{count}</span>
                 </div>
                 <div style={{ height: '6px', borderRadius: '6px', background: v('surface3'), overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: '6px', background: meta.grad, width: `${pct}%`, transition: 'width 0.6s ease' }} />
